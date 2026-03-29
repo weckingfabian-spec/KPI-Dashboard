@@ -1,0 +1,18 @@
+{
+  "name": "Fabian Wecking — Life Dashboard",
+  "short_name": "FW Dashboard",
+  "description": "Persönliches Life & Business Dashboard",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f6fb",
+  "theme_color": "#4472f0",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

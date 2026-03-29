@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fabian Wecking — Life Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4472f0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="FW Dashboard">
+</head>
+<body>
+
+<!-- ================================================
+     LOADING SCREEN
+     ================================================ -->
+<div id="loading-screen" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">FW</div>
+    <div class="auth-spinner"></div>
+  </div>
+</div>
+
+<!-- ================================================
+     LOGIN SCREEN
+     ================================================ -->
+<div id="login-screen" class="auth-screen" style="display:none">
+  <div class="auth-card">
+    <div class="auth-logo">FW</div>
+    <div class="auth-title">Life Dashboard</div>
+    <div class="auth-sub">Fabian Wecking · Persönlicher Bereich</div>
+    <div class="auth-fields">
+      <input type="email" class="f-in" id="login-email" placeholder="E-Mail" autocomplete="email">
+      <input type="password" class="f-in" id="login-password" placeholder="Passwort" autocomplete="current-password">
+      <button class="btn-primary" id="login-btn" style="width:100%;margin-top:4px">Anmelden</button>
+    </div>
+    <div id="login-msg"></div>
+  </div>
+</div>
+
+<!-- ================================================
+     APP
+     ================================================ -->
+<div id="app" style="display:none">
+
+<!-- ================================================
+     NAVIGATION
+     ================================================ -->
+<nav class="nav">
+  <div class="nav-brand">Fabian Wecking <sub>Life Dashboard</sub></div>
+  <button class="nav-tab active" data-tab="overview">Übersicht</button>
+  <button class="nav-tab" data-tab="daily">Daily</button>
+  <button class="nav-tab" data-tab="weekly">Weekly</button>
+  <button class="nav-tab" data-tab="monthly">Monthly</button>
+  <button class="nav-tab" data-tab="pipeline">Pipeline</button>
+  <button class="nav-tab" data-tab="kunden">Kundenübersicht</button>
+  <button class="nav-tab" data-tab="training">Training</button>
+  <div class="nav-spacer"></div>
+  <button class="tv-btn" id="tv-open">⊞ TV Mode</button>
+  <button class="tv-btn" id="logout-btn" style="margin-left:6px">↪ Logout</button>
+</nav>
+
+<!-- ================================================
+     TV OVERLAY
+     ================================================ -->
+<div id="tv-ov" class="tv-ov">
+  <button class="tv-close" id="tv-close">✕ ESC</button>
+
+  <div class="tv-top">
+    <div class="tv-name">Fabian Wecking · Life Dashboard</div>
+    <div class="tv-time-block">
+      <div class="tv-time" id="tv-time">00:00</div>
+      <div class="tv-datestr" id="tv-datestr"></div>
+    </div>
+  </div>
+
+  <div class="tv-cards" style="grid-template-columns:repeat(3,1fr)">
+    <div class="tv-card">
+      <div class="tv-card-lbl">Notartermine in Vorlage</div>
+      <div class="tv-card-val" id="tv-notar">—</div>
+      <div class="tv-card-sub">gesicherte Abschlüsse</div>
+    </div>
+    <div class="tv-card">
+      <div class="tv-card-lbl">KAI S2 Termine (MTD)</div>
+      <div class="tv-card-val" id="tv-kai">—</div>
+      <div class="tv-card-sub">Ziel: 10 / Monat</div>
+    </div>
+    <div class="tv-card">
+      <div class="tv-card-lbl">Einkommen MTD</div>
+      <div class="tv-card-val amber sm" id="tv-eink">—</div>
+      <div class="tv-card-sub">aktueller Monat</div>
+    </div>
+  </div>
+
+  <div class="tv-footer">
+    <div class="tv-footer-l">Daten aus Pipeline · Eingabe unter Monthly</div>
+    <div class="tv-footer-r">GM · 01.03.2028</div>
+  </div>
+</div>
+
+<!-- ================================================
+     MAIN
+     ================================================ -->
+<main class="main">
+
+  <!-- ============================================
+       ÜBERSICHT
+       ============================================ -->
+  <div id="t-overview" class="tab-content active">
+
+    <div class="sh">
+      <div class="sh-title">Übersicht</div>
+      <div class="sh-sub" id="ov-date"></div>
+    </div>
+
+    <div class="g3">
+      <div class="kpi-card">
+        <div class="kpi-lbl">Notartermine in Vorlage</div>
+        <div class="kpi-val blue" id="ov-notar">—</div>
+        <div class="kpi-meta">aus Pipeline</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-lbl">Einkommen MTD</div>
+        <div class="kpi-val amber sm" id="ov-eink">—</div>
+        <div class="kpi-meta">manuelle Eingabe (Monthly)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-lbl">Gemeldetes Volumen</div>
+        <div class="kpi-val sm" id="ov-vol">—</div>
+        <div class="kpi-meta">manuelle Eingabe (Monthly)</div>
+      </div>
+    </div>
+
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">Monatsziele</div>
+        <div class="card-sub">Fortschritt aktueller Monat</div>
+        <div id="pb-kai"></div>
+        <div id="pb-notar" style="margin-top:16px"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Heute</div>
+        <div class="card-sub">Routine &amp; Streak</div>
+        <div style="display:flex;gap:24px;align-items:flex-end;margin-bottom:18px;flex-wrap:wrap">
+          <div>
+            <div class="kpi-lbl">Morgenroutine</div>
+            <div style="font-family:var(--ff-serif);font-size:34px;color:var(--blue-l);line-height:1" id="ov-morning">0 / 18</div>
+          </div>
+          <div>
+            <div class="kpi-lbl">Abendroutine</div>
+            <div style="font-family:var(--ff-serif);font-size:34px;color:var(--blue-l);line-height:1" id="ov-evening">0 / 8</div>
+          </div>
+          <div style="margin-left:auto">
+            <div class="kpi-lbl">Streak</div>
+            <div class="streak">
+              <span class="streak-n" id="ov-streak">0</span>
+              <span>Tage</span>
+            </div>
+          </div>
+        </div>
+        <p style="font-size:11px;color:var(--text-3);line-height:1.5">
+          Routinen täglich per Klick abhaken → Daily. Pipeline-Daten automatisch aus dem Pipeline-Tab.
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============================================
+       DAILY
+       ============================================ -->
+  <div id="t-daily" class="tab-content">
+
+    <div class="sh">
+      <div class="sh-title">Daily</div>
+      <div class="sh-sub" id="daily-date"></div>
+    </div>
+
+    <div class="g2">
+
+      <div class="card">
+        <div class="card-title">Morgenroutine</div>
+        <div class="card-sub">Miracle Morning · Zielversion · ~99 min</div>
+        <div id="morning-list"></div>
+        <div class="rp">
+          <div class="rp-bar">
+            <div class="pb"><div class="pb-fill" id="m-pb" style="width:0%"></div></div>
+          </div>
+          <div class="rp-num" id="m-count">0</div>
+          <div class="rp-txt">/ <span id="m-total">18</span> erledigt</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Abendroutine</div>
+        <div class="card-sub">Tagesabschluss &amp; Reflexion</div>
+        <div id="evening-list"></div>
+        <div class="rp">
+          <div class="rp-bar">
+            <div class="pb"><div class="pb-fill" id="e-pb" style="width:0%"></div></div>
+          </div>
+          <div class="rp-num" id="e-count">0</div>
+          <div class="rp-txt">/ <span id="e-total">8</span> erledigt</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================
+       WEEKLY
+       ============================================ -->
+  <div id="t-weekly" class="tab-content">
+
+    <div class="sh">
+      <div class="sh-title">Weekly Review</div>
+      <div class="sh-sub" id="weekly-wk"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Sonntagsfahrplan zur Zielerreichung</div>
+      <div class="card-sub">Reflexion · Ziele · Pipeline · Partnerlage · Monatsziel</div>
+      <div class="blue-line"></div>
+      <div id="weekly-container"></div>
+    </div>
+
+  </div>
+
+  <!-- ============================================
+       MONTHLY
+       ============================================ -->
+  <div id="t-monthly" class="tab-content">
+
+    <div class="sh">
+      <div class="sh-title">Monthly KPIs</div>
+    </div>
+
+    <div class="mn">
+      <button class="mn-btn" id="mn-prev">← Zurück</button>
+      <div class="mn-display" id="mn-display"></div>
+      <button class="mn-btn" id="mn-next">Vor →</button>
+    </div>
+
+    <div class="g2">
+
+      <div class="card">
+        <div class="card-title">KPI Tracker</div>
+        <div class="card-sub">Monatliche Kennzahlen vs. Ziel · ● Pipeline = automatisch befüllt</div>
+        <div id="kpi-container"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Controlling</div>
+        <div class="card-sub">Manuelle Geschäftskennzahlen</div>
+        <div id="ctrl-container"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================
+       PIPELINE / CRM
+       ============================================ -->
+  <div id="t-pipeline" class="tab-content">
+
+    <div class="sh">
+      <div class="sh-title">Pipeline</div>
+      <div class="sh-sub" id="pl-month"></div>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="g4" id="pl-stats"></div>
+
+    <!-- Controls row -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+      <button class="add-btn" id="pl-add-btn">+ Eintrag hinzufügen</button>
+      <div style="flex:1"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap" id="pl-filters">
+        <button class="pl-filter active" data-f="all">Alle</button>
+        <button class="pl-filter" data-f="notar_vorlage">Notartermine</button>
+        <button class="pl-filter" data-f="kai_s2">KAI S2</button>
+        <button class="pl-filter" data-f="reservierung">Reservierung</button>
+        <button class="pl-filter" data-f="interessent">Interessenten</button>
+        <button class="pl-filter" data-f="done">Abgeschlossen</button>
+      </div>
+    </div>
+
+    <!-- Add / Edit form -->
+    <div id="pl-form" class="pl-form" style="display:none">
+      <div class="pl-form-title" id="pf-title">Neuen Eintrag anlegen</div>
+      <div class="pl-form-grid">
+        <div class="f-group">
+          <label class="f-lbl">Name *</label>
+          <input class="f-in" id="pf-name" type="text" placeholder="z. B. Hans Müller">
+        </div>
+        <div class="f-group">
+          <label class="f-lbl">Typ *</label>
+          <select class="f-in" id="pf-type">
+            <!-- options generated by JS -->
+          </select>
+        </div>
+        <div class="f-group">
+          <label class="f-lbl">Kaufpreis / Betrag (€)</label>
+          <input class="f-in" id="pf-amount" type="number" placeholder="350000" min="0" step="1000">
+        </div>
+        <div class="f-group">
+          <label class="f-lbl">Datum (Termin / geplanter Abschluss)</label>
+          <input class="f-in" id="pf-date" type="date">
+        </div>
+        <div class="f-group" style="grid-column:1/-1">
+          <label class="f-lbl">Notizen</label>
+          <textarea class="f-ta" id="pf-notes" style="min-height:56px" placeholder="Adresse, Besonderheiten, nächster Schritt …"></textarea>
+        </div>
+        <div class="f-group" style="grid-column:1/-1">
+          <label class="eigen-label">
+            <input type="checkbox" id="pf-eigen" class="eigen-check">
+            <span class="eigen-box"></span>
+            <span class="eigen-text">Eigenkunde <span class="eigen-hint">— Volumen-Faktor ×1.53 statt ×0.77</span></span>
+          </label>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <button class="btn-primary" id="pf-save">Speichern</button>
+        <button class="btn-ghost" id="pf-cancel">Abbrechen</button>
+      </div>
+    </div>
+
+    <!-- Entry list -->
+    <div id="pl-list"></div>
+
+  </div>
+
+  <!-- ============================================
+       KUNDENÜBERSICHT
+       ============================================ -->
+  <div id="t-kunden" class="tab-content">
+
+    <div class="sh">
+      <div class="sh-title">Kundenübersicht</div>
+      <div class="sh-sub">Alle Kunden auf einen Blick · Klick auf Pfeil zum Aufklappen</div>
+    </div>
+
+    <div class="ku-grid">
+
+      <!-- KAI S2 Termine -->
+      <div class="ku-tile">
+        <div class="ku-tile-hd" onclick="toggleKuTile('kai')">
+          <div>
+            <div class="ku-tile-lbl">KAI S2 Termine</div>
+            <div class="ku-tile-num blue" id="ktn-kai">—</div>
+            <div class="ku-tile-meta">Kunden mit Terminplanung · sortiert nach Datum</div>
+          </div>
+          <button class="ku-arrow" id="ka-kai">&#9660;</button>
+        </div>
+        <div class="ku-tile-body" id="kb-kai"></div>
+      </div>
+
+      <!-- Reservierungsberatung -->
+      <div class="ku-tile">
+        <div class="ku-tile-hd" onclick="toggleKuTile('res')">
+          <div>
+            <div class="ku-tile-lbl">Reservierungsberatung</div>
+            <div class="ku-tile-num purple" id="ktn-res">—</div>
+            <div class="ku-tile-meta">Aktive Beratungen</div>
+          </div>
+          <button class="ku-arrow" id="ka-res">&#9660;</button>
+        </div>
+        <div class="ku-tile-body" id="kb-res"></div>
+      </div>
+
+      <!-- Eingewertete Kunden (CSV) -->
+      <div class="ku-tile">
+        <div class="ku-tile-hd" onclick="toggleKuTile('eing')">
+          <div>
+            <div class="ku-tile-lbl">Eingewertete Kunden</div>
+            <div class="ku-tile-num amber" id="ktn-eing">—</div>
+            <div class="ku-tile-meta">Rangstelle aus CSV-Import</div>
+          </div>
+          <button class="ku-arrow" id="ka-eing">&#9660;</button>
+        </div>
+        <div class="ku-tile-body" id="kb-eing"></div>
+      </div>
+
+      <!-- Notartermine in Vorlage -->
+      <div class="ku-tile">
+        <div class="ku-tile-hd" onclick="toggleKuTile('notar')">
+          <div>
+            <div class="ku-tile-lbl">Notartermine in Vorlage</div>
+            <div class="ku-tile-num green" id="ktn-notar">—</div>
+            <div class="ku-tile-meta">Gesicherte Abschlüsse · sortiert nach Datum</div>
+          </div>
+          <button class="ku-arrow" id="ka-notar">&#9660;</button>
+        </div>
+        <div class="ku-tile-body" id="kb-notar"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================
+       TRAINING
+       ============================================ -->
+  <div id="t-training" class="tab-content">
+
+    <div class="sh">
+      <div class="sh-title">Training</div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+      <button class="tr-btn active" data-day="push">Push — Mo</button>
+      <button class="tr-btn" data-day="pull">Pull — Mi</button>
+      <button class="tr-btn" data-day="legs">Beine — Fr</button>
+      <button class="tr-btn" data-day="optional">Optional — So</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title" id="tr-label">Push — Montag</div>
+      <div class="card-sub">Wdh · kg pro Satz — Eingaben werden täglich gespeichert</div>
+      <div id="ex-container"></div>
+    </div>
+
+  </div>
+
+</main>
+
+</div><!-- /#app -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+</body>
+</html>
