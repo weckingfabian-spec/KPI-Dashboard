@@ -317,20 +317,23 @@ function getCol(row,name){const idx=CSV_HEADER_MAP[name];return(idx!==undefined&
 
 function parseCSV(text) {
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(l=>l.trim());
-  if(lines.length<2) return [];
+  if(lines.length<2) return {rows:[], errors:[{line:1, reason:'Datei leer oder kein Inhalt nach der Kopfzeile'}]};
   initCSVHeader(parseCSVLine(lines[0]));
-  const rows=[];
+  const rows=[], errors=[];
   for(let i=1;i<lines.length;i++){
-    const cols=parseCSVLine(lines[i]); if(cols.length<10) continue;
+    const cols=parseCSVLine(lines[i]);
+    if(cols.length<5){ errors.push({line:i+1, preview:lines[i].substring(0,60), reason:`Zu wenige Spalten (${cols.length})`}); continue; }
     const firstName=getCol(cols,'Vorname'), lastName=getCol(cols,'Nachname');
+    if(!firstName&&!lastName){ errors.push({line:i+1, preview:lines[i].substring(0,60), reason:'Kein Vor- oder Nachname'}); continue; }
     const email=getCol(cols,'Email'), kundenNr=getCol(cols,'Kundennummer').replace(/\s/g,'');
     const erstelltStr=getCol(cols,'Erstellt');
     const einwertNrRaw=getCol(cols,'Einwertungsnummern'), rangstelle=getCol(cols,'Beste Rangstelle');
     const erstellt=parseDateDE(erstelltStr), einwertDates=parseEinwertungDates(einwertNrRaw);
+    if(!erstellt) errors.push({line:i+1, preview:`${firstName} ${lastName}`, reason:`Ungültiges Erstellt-Datum: „${erstelltStr}" (erwartet TT.MM.JJJJ)`, warn:true});
     const _key=kundenNr||email||`${firstName}_${lastName}_${erstelltStr}`;
     rows.push({_key,kundenNr,firstName,lastName,email,erstellt,erstelltStr,einwertNrRaw,einwertDates,rangstelle});
   }
-  return rows;
+  return {rows, errors};
 }
 
 function toDate(d){ return d instanceof Date ? d : new Date(d); }
@@ -591,6 +594,11 @@ function renderBigGoalBanner() {
   const yearPct=Math.round(((now-new Date(now.getFullYear(),0,1))/(new Date(now.getFullYear()+1,0,1)-new Date(now.getFullYear(),0,1)))*100);
   const diff=achPct-yearPct;
   const trendLabel=diff>=0?`<span style="color:var(--green)">▲ +${diff}% Vorsprung</span>`:`<span style="color:var(--red)">▼ ${diff}% Rückstand</span>`;
+  // Auto-Hochrechnung: project year-end total based on current pace
+  const autoProj = (achieved>0 && yearPct>0) ? Math.round(achieved/(yearPct/100)) : 0;
+  const autoProjLabel = autoProj>0
+    ? `<span class="legend-chip chip-auto-proj" style="color:${autoProj>=target?'var(--green)':autoProj>=target*0.8?'var(--orange)':'var(--red)'}">📈 Hochrechnung: ~${autoProj}</span>`
+    : '';
 
   document.getElementById('bg-label-display').textContent=label||(target?`Ziel: ${target}`:'Jahres-Ziel einrichten');
   document.getElementById('bg-pct-display').innerHTML=target?`<strong>${achieved} von ${target}</strong>`:'' ;
@@ -602,7 +610,8 @@ function renderBigGoalBanner() {
     <span class="legend-chip chip-open">□ ${open} offen</span>
     <span class="legend-chip chip-target">Ziel: ${target}</span>
     <span class="legend-chip chip-year-pct">⏱ ${yearPct}% Jahr vergangen</span>
-    ${target?trendLabel:''}`;
+    ${target?trendLabel:''}
+    ${target&&autoProj>0?autoProjLabel:''}`;
 }
 
 function showBigGoalModal() {
@@ -947,10 +956,12 @@ function renderFunnel(kpis) {
   container.innerHTML=`<h3 class="section-title">Conversion Funnel</h3><div class="funnel-stages">${stages.map((stage,i)=>{
     const bw=Math.max(5,Math.round((stage.val/maxVal)*100));
     const conv=(i>0&&stages[i-1].val>0)?Math.round((stage.val/stages[i-1].val)*100):null;
+    const convCls=conv===null?'':conv>=50?'conv-good':conv>=25?'conv-ok':'conv-low';
+    const convHtml=conv!==null?`<span class="conv-badge ${convCls}">${conv}%</span>`:`<span class="conv-badge conv-empty">—</span>`;
     return `<div class="funnel-stage">
       <div class="funnel-label">${stage.label}</div>
       <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:${bw}%"><span class="funnel-val">${stage.val}</span></div></div>
-      <div class="funnel-conv">${conv!==null?conv+'%':''}</div>
+      <div class="funnel-conv">${convHtml}</div>
     </div>`;
   }).join('')}</div>`;
 }
@@ -1214,19 +1225,69 @@ function resetCSVData(){if(!confirm('CSV-Daten löschen?'))return;S.customers=[]
 // ─── MODALS ────────────────────────────────────────────────────────────────────
 function closeModal(id){document.getElementById(id).classList.add('hidden');}
 
+// ─── DARK MODE ─────────────────────────────────────────────────────────────────
+function toggleDarkMode() {
+  const isDark = document.body.dataset.theme === 'dark';
+  document.body.dataset.theme = isDark ? '' : 'dark';
+  localStorage.setItem('fw_kpi_theme', isDark ? '' : 'dark');
+  document.getElementById('dark-mode-btn').textContent = isDark ? '🌙' : '☀️';
+}
+function applyStoredTheme() {
+  const t = localStorage.getItem('fw_kpi_theme');
+  if (t === 'dark') {
+    document.body.dataset.theme = 'dark';
+    const btn = document.getElementById('dark-mode-btn');
+    if (btn) btn.textContent = '☀️';
+  }
+}
+
 // ─── CSV UPLOAD ────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
+  applyStoredTheme();
   document.getElementById('csv-input').addEventListener('change',function(e){
     const file=e.target.files[0]; if(!file) return;
     const reader=new FileReader();
     reader.onload=ev=>{
-      try{const rows=parseCSV(ev.target.result);const{added,updated}=mergeCustomers(rows);saveState();render();showToast(`CSV: ${added} neu, ${updated} aktualisiert (${S.customers.length} gesamt)`,'success');}
+      try{
+        const {rows,errors}=parseCSV(ev.target.result);
+        const{added,updated}=mergeCustomers(rows);
+        saveState();render();
+        const skipped=errors.filter(e=>!e.warn).length;
+        const warns=errors.filter(e=>e.warn).length;
+        let toastMsg=`CSV: ${added} neu, ${updated} aktualisiert (${S.customers.length} gesamt)`;
+        if(skipped>0) toastMsg+=` · ${skipped} Zeile(n) übersprungen`;
+        if(warns>0) toastMsg+=` · ${warns} Warnung(en)`;
+        showToast(toastMsg, skipped>0?'warning':'success');
+        if(errors.length>0) showCSVErrorLog(errors);
+      }
       catch(err){showToast('CSV-Fehler: '+err.message,'error');}
     };
     reader.onerror=()=>showToast('Datei konnte nicht gelesen werden.','error');
     reader.readAsText(file,'UTF-8'); this.value='';
   });
 });
+
+function showCSVErrorLog(errors) {
+  const existing=document.getElementById('csv-error-log');
+  if(existing) existing.remove();
+  const panel=document.createElement('div');
+  panel.id='csv-error-log';
+  panel.className='csv-error-panel';
+  const skipped=errors.filter(e=>!e.warn), warns=errors.filter(e=>e.warn);
+  panel.innerHTML=`
+    <div class="csv-error-header">
+      <span>⚠️ CSV-Importprotokoll (${errors.length} Einträge)</span>
+      <button class="btn-icon-sm" onclick="document.getElementById('csv-error-log').remove()">✕</button>
+    </div>
+    <div class="csv-error-body">
+      ${skipped.length>0?`<div class="csv-error-section-title">Übersprungen (${skipped.length}):</div>${skipped.map(e=>`<div class="csv-error-row csv-error-skip"><span class="csv-error-line">Zeile ${e.line}</span><span class="csv-error-preview">${escapeHtml(e.preview||'')}</span><span class="csv-error-reason">${escapeHtml(e.reason)}</span></div>`).join('')}`:''}
+      ${warns.length>0?`<div class="csv-error-section-title" style="margin-top:8px">Warnungen (${warns.length}):</div>${warns.map(e=>`<div class="csv-error-row csv-error-warn"><span class="csv-error-line">Zeile ${e.line}</span><span class="csv-error-preview">${escapeHtml(e.preview||'')}</span><span class="csv-error-reason">${escapeHtml(e.reason)}</span></div>`).join('')}`:''}
+    </div>`;
+  // Insert below the csv-info bar
+  const csvInfo=document.getElementById('csv-info');
+  if(csvInfo) csvInfo.parentNode.insertBefore(panel, csvInfo.nextSibling);
+  else document.querySelector('.main-content').prepend(panel);
+}
 
 // ─── EXPORT ────────────────────────────────────────────────────────────────────
 function exportStatsCSV(){

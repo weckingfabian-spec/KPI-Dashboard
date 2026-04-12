@@ -26,6 +26,32 @@
   --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* ─── Dark Mode ────────────────────────────────────────────────────────────── */
+body[data-theme="dark"] {
+  background: #12151c;
+  --gray-0: #1e2230;
+  --gray-1: #262b38;
+  --gray-2: #323848;
+  --gray-3: #4a5268;
+  --gray-4: #8b95a8;
+  --gray-5: #c5cdd8;
+  --gray-6: #eef0f5;
+  --white:  #181d2a;
+  --shadow: 0 1px 4px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+body[data-theme="dark"] .kpi-card { border-color: var(--gray-2); }
+body[data-theme="dark"] .text-input,
+body[data-theme="dark"] .filter-select,
+body[data-theme="dark"] .row-select { background: var(--gray-1); color: var(--gray-6); border-color: var(--gray-2); }
+body[data-theme="dark"] .modal { background: var(--white); border: 1px solid var(--gray-2); }
+body[data-theme="dark"] .tab-btn { color: var(--gray-5); }
+body[data-theme="dark"] .tab-btn.active { color: var(--gray-6); border-color: var(--gray-6); }
+body[data-theme="dark"] .btn-secondary { background: var(--gray-1); color: var(--gray-5); border-color: var(--gray-2); }
+body[data-theme="dark"] .btn-secondary:hover { background: var(--gray-2); color: var(--gray-6); }
+body[data-theme="dark"] .toast { background: var(--gray-1); color: var(--gray-6); border: 1px solid var(--gray-2); }
+
 html { font-size: 15px; -webkit-font-smoothing: antialiased; }
 body {
   font-family: var(--font);
@@ -241,7 +267,7 @@ body {
 }
 .funnel-val { font-size: .8rem; font-weight: 700; color: var(--white); }
 
-.funnel-conv { font-size: .72rem; color: var(--gray-4); text-align: right; }
+.funnel-conv { font-size: .72rem; color: var(--gray-4); text-align: center; display: flex; align-items: center; justify-content: flex-end; }
 
 /* Stage-specific colors */
 .funnel-stage:nth-child(1) .funnel-bar { background: linear-gradient(90deg, #6c757d, #868e96); }
@@ -325,6 +351,36 @@ body {
 .kunden-table tbody tr.row-status-yellow:hover td { background: rgba(255,193,7,.22); }
 .kunden-table tbody tr.row-status-red:hover td    { background: rgba(244,67,54,.13); }
 .kunden-table td.mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: .78rem; color: var(--gray-4); }
+
+/* ─── CSV Error Log ─────────────────────────────────────────────────────── */
+.csv-error-panel {
+  margin: 8px 0 12px; border: 1px solid var(--orange); border-radius: var(--radius-sm);
+  background: var(--orange-lt); font-size: .78rem; overflow: hidden;
+}
+.csv-error-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; font-weight: 600; color: var(--gray-6);
+  border-bottom: 1px solid rgba(240,155,26,.3);
+}
+.csv-error-body { padding: 8px 12px; max-height: 180px; overflow-y: auto; }
+.csv-error-section-title { font-weight: 600; color: var(--gray-5); margin-bottom: 4px; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+.csv-error-row { display: grid; grid-template-columns: 60px 1fr 1fr; gap: 8px; padding: 3px 0; border-bottom: 1px solid rgba(240,155,26,.15); }
+.csv-error-row:last-child { border-bottom: none; }
+.csv-error-skip { color: var(--red); }
+.csv-error-warn { color: var(--orange); }
+.csv-error-line { font-weight: 600; font-family: monospace; }
+.csv-error-preview { color: var(--gray-5); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.csv-error-reason { color: inherit; }
+
+/* ─── Funnel conversion badges ────────────────────────────────────────── */
+.conv-badge {
+  display: inline-block; padding: 2px 7px; border-radius: 10px;
+  font-size: .72rem; font-weight: 700; white-space: nowrap;
+}
+.conv-good  { background: var(--green-lt);  color: var(--green); }
+.conv-ok    { background: var(--orange-lt); color: var(--orange); }
+.conv-low   { background: var(--red-lt);    color: var(--red); }
+.conv-empty { background: transparent; color: var(--gray-3); font-weight: 400; }
 
 /* Archive row button */
 .btn-archive-row {
