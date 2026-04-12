@@ -892,3 +892,17 @@ h4 { font-size: .875rem; font-weight: 700; margin-bottom: 10px; }
   background: var(--blue-lt);
   color: var(--blue);
 }
+
+/* ─── Kunden Tab – Row Selects ───────────────────────────────────────────────── */
+.row-select {
+  padding: 3px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-size: .75rem;
+  color: var(--gray-1);
+  width: 100%;
+  max-width: 120px;
+}
+.row-status-select { max-width: 130px; }
+.kunden-filter-bar { position: sticky; top: 0; background: var(--white); z-index: 10; padding: 8px 0 10px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }

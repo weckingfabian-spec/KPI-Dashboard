@@ -972,16 +972,16 @@ function renderKundenTab() {
   const search=(document.getElementById('kunden-search')?.value||'').toLowerCase().trim();
   const filterProject=document.getElementById('kf-project')?.value||'';
   const filterStatus=document.getElementById('kf-status')?.value||'';
-  const filterDateRef=document.getElementById('kf-date')?.value||''; // YYYY-MM-DD or ''
+  const filterDateRaw=document.getElementById('kf-date')?.value||''; // TT.MM.JJJJ
+  const filterDateRef=parseDateDE(filterDateRaw); // Date|null
 
   let filtered=eingewertet;
   if(search) filtered=filtered.filter(c=>`${c.firstName} ${c.lastName}`.toLowerCase().includes(search)||c.einwertNrRaw.toLowerCase().includes(search));
   if(filterProject) filtered=filtered.filter(c=>{const m=getCustomerMeta(c._key);return m.projectId===filterProject;});
-  if(filterStatus) filtered=filtered.filter(c=>{const m=getCustomerMeta(c._key);return (m.status||'')=== filterStatus;});
+  if(filterStatus) filtered=filtered.filter(c=>{const m=getCustomerMeta(c._key);return (m.status||'')===filterStatus;});
   if(filterDateRef) {
-    const refDate=new Date(filterDateRef);
-    const sixMonthsAgo=new Date(refDate); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth()-6);
-    filtered=filtered.filter(c=>c.einwertDates.some(d=>d>=sixMonthsAgo&&d<=refDate));
+    const sixMonthsAgo=new Date(filterDateRef); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth()-6);
+    filtered=filtered.filter(c=>c.einwertDates.some(d=>d>=sixMonthsAgo&&d<=filterDateRef));
   }
   filtered.sort((a,b)=>Math.max(...b.einwertDates.map(d=>d.getTime()))-Math.max(...a.einwertDates.map(d=>d.getTime())));
 
@@ -989,16 +989,18 @@ function renderKundenTab() {
   const projectOpts=S.projects.map(p=>`<option value="${p.id}">${escapeHtml(p.hashtag||p.name)}</option>`).join('');
 
   const STATUS_OPTS=[
-    {val:'',label:'— Status —'},
+    {val:'',label:'—'},
+    {val:'reservierungsberatung',label:'🟢 Res.beratung'},
+    {val:'abwartend',label:'🟡 abwartend'},
+    {val:'aktuell_raus',label:'🔴 raus'}
+  ];
+  const STATUS_FILTER_OPTS=[
+    {val:'',label:'Alle Status'},
     {val:'reservierungsberatung',label:'Reservierungsberatung'},
     {val:'abwartend',label:'abwartend'},
     {val:'aktuell_raus',label:'aktuell raus'}
   ];
   const STATUS_COLORS={reservierungsberatung:'#e8f5e9',abwartend:'#fff8e1',aktuell_raus:'#ffebee'};
-
-  const currentFilterProject=filterProject;
-  const currentFilterStatus=filterStatus;
-  const currentFilterDate=filterDateRef;
 
   container.innerHTML=`
     <div class="kunden-filter-bar">
@@ -1006,43 +1008,36 @@ function renderKundenTab() {
         <option value="">Alle Projekte</option>${projectOpts}
       </select>
       <select id="kf-status" class="filter-select" onchange="renderKundenTab()">
-        ${STATUS_OPTS.map(o=>`<option value="${o.val}">${o.label}</option>`).join('')}
+        ${STATUS_FILTER_OPTS.map(o=>`<option value="${o.val}"${filterStatus===o.val?' selected':''}>${o.label}</option>`).join('')}
       </select>
       <div class="filter-date-wrap">
-        <label style="font-size:.78rem;color:var(--gray-4)">Eingewertet bis:</label>
-        <input type="date" id="kf-date" class="text-input filter-date-input" value="${currentFilterDate}" onchange="renderKundenTab()" title="Zeigt Kunden der 6 Monate vor diesem Datum">
-        ${currentFilterDate?`<button class="btn-icon-sm" onclick="document.getElementById('kf-date').value='';renderKundenTab()">✕</button>`:''}
+        <label style="font-size:.78rem;color:var(--gray-4)">Bis-Datum:</label>
+        <input type="text" id="kf-date" class="text-input filter-date-input" value="${filterDateRaw}"
+          placeholder="TT.MM.JJJJ" maxlength="10"
+          onblur="renderKundenTab()"
+          onkeydown="if(event.key==='Enter')this.blur()"
+          title="6 Monate vor diesem Datum werden angezeigt">
+        ${filterDateRaw?`<button class="btn-icon-sm" onclick="document.getElementById('kf-date').value='';renderKundenTab()">✕</button>`:''}
       </div>
       <span class="kunden-count">${filtered.length} Kunden</span>
       <button class="btn-secondary" onclick="exportKunden()">⬇️ CSV</button>
     </div>
-    <div class="table-scroll"><table class="kunden-table">
-      <thead><tr><th>#</th><th>Vorname</th><th>Nachname</th><th>Einwertungsnr.</th><th>Datum</th><th>Rang</th><th>Projekt</th><th>Status</th></tr></thead>
+    <div class="table-scroll"><table class="kunden-table kunden-table-wide">
+      <thead><tr><th style="width:32px">#</th><th>Vorname</th><th>Nachname</th><th>Einwertungsnr.</th><th>Datum</th><th style="width:60px">Rang</th><th style="width:120px">Projekt</th><th style="width:130px">Status</th></tr></thead>
       <tbody>${filtered.map((c,i)=>{
         const meta=getCustomerMeta(c._key);
         const rowBg=STATUS_COLORS[meta.status]||'';
-        const projSel=`<select class="customer-dropdown" onchange="saveCustomerMeta('${escapeAttr(c._key)}','projectId',this.value)">
-          <option value="">—</option>${S.projects.map(p=>`<option value="${p.id}"${meta.projectId===p.id?' selected':''}>${escapeHtml(p.hashtag||p.name)}</option>`).join('')}
-        </select>`;
-        const statSel=`<select class="customer-dropdown status-dropdown" onchange="saveCustomerMeta('${escapeAttr(c._key)}','status',this.value)">
-          ${STATUS_OPTS.map(o=>`<option value="${o.val}"${(meta.status||'')===o.val?' selected':''}>${o.label}</option>`).join('')}
-        </select>`;
+        const projSel=`<select class="row-select" onchange="saveCustomerMeta('${escapeAttr(c._key)}','projectId',this.value)"><option value="">—</option>${S.projects.map(p=>`<option value="${p.id}"${meta.projectId===p.id?' selected':''}>${escapeHtml(p.hashtag||p.name)}</option>`).join('')}</select>`;
+        const statSel=`<select class="row-select row-status-select" onchange="saveCustomerMeta('${escapeAttr(c._key)}','status',this.value)">${STATUS_OPTS.map(o=>`<option value="${o.val}"${(meta.status||'')===o.val?' selected':''}>${o.label}</option>`).join('')}</select>`;
         return `<tr style="${rowBg?'background:'+rowBg+';':''}">`+
-          `<td style="color:var(--gray-4)">${i+1}</td>`+
-          `<td>${escapeHtml(c.firstName)}</td>`+
-          `<td>${escapeHtml(c.lastName)}</td>`+
-          `<td class="mono">${escapeHtml(c.einwertNrRaw)}</td>`+
-          `<td>${c.einwertDates.map(d=>formatDateDE(d)).join(', ')}</td>`+
-          `<td>${c.rangstelle||'—'}</td>`+
-          `<td>${projSel}</td>`+
-          `<td>${statSel}</td>`+
-          `</tr>`;
+          `<td style="color:var(--gray-4);font-size:.78rem">${i+1}</td>`+
+          `<td>${escapeHtml(c.firstName)}</td><td>${escapeHtml(c.lastName)}</td>`+
+          `<td class="mono" style="font-size:.75rem">${escapeHtml(c.einwertNrRaw)}</td>`+
+          `<td style="white-space:nowrap">${c.einwertDates.map(d=>formatDateDE(d)).join(', ')}</td>`+
+          `<td style="text-align:right">${c.rangstelle||'—'}</td>`+
+          `<td>${projSel}</td><td>${statSel}</td></tr>`;
       }).join('')}</tbody>
     </table></div>`;
-
-  // Filter-Werte wiederherstellen nach Re-Render
-  if(currentFilterProject){const el=document.getElementById('kf-project');if(el)el.value=currentFilterProject;}
-  if(currentFilterStatus){const el=document.getElementById('kf-status');if(el)el.value=currentFilterStatus;}
 }
 
 // ─── PROJEKTE TAB ──────────────────────────────────────────────────────────────
