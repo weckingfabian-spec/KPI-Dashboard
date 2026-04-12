@@ -34,10 +34,12 @@ async function sbSignOut(token) {
   await fetch(`${SB_URL}/auth/v1/logout`, { method:'POST', headers:_sbHeaders(token) }).catch(()=>{});
 }
 async function sbLoadData(userId) {
-  const res = await fetch(`${SB_URL}/rest/v1/kpi_state?user_id=eq.${userId}&select=data`, {
+  const res = await fetch(`${SB_URL}/rest/v1/kpi_state?select=data&limit=1`, {
     headers:_sbHeaders(_sbToken)
   });
+  if (!res.ok) { console.warn('sbLoadData HTTP', res.status); return null; }
   const rows = await res.json();
+  console.log('sbLoadData rows:', rows?.length, rows?.[0]?.data ? 'has data' : 'no data');
   if (!Array.isArray(rows) || rows.length === 0) return null;
   return rows[0].data;
 }
