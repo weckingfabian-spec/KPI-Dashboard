@@ -1000,4 +1000,11 @@ h4 { font-size: .875rem; font-weight: 700; margin-bottom: 10px; }
   max-width: 120px;
 }
 .row-status-select { max-width: 130px; }
-.kunden-filter-bar { position: sticky; top: 0; background: var(--white); z-index: 10; padding: 8px 0 10px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+.kunden-filter-bar { position: sticky; top: 0; background: var(--white); z-index: 10; padding: 8px 0 10px; border-bottom: 1px solid var(--gray-2); margin-bottom: 8px; }
+.btn-reset-filter {
+  background: var(--red-lt); color: var(--red); border: 1px solid var(--red);
+  border-radius: var(--radius-sm); padding: 4px 10px; font-size: .75rem;
+  cursor: pointer; font-weight: 600; white-space: nowrap;
+  transition: background .15s;
+}
+.btn-reset-filter:hover { background: var(--red); color: #fff; }

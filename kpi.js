@@ -876,6 +876,11 @@ function toggleArchiveCustomer(key) {
 }
 let _showArchive = false;
 function toggleArchiveSection() { _showArchive = !_showArchive; renderKundenTab(); }
+function resetKundenFilter() {
+  const ids = ['kf-project','kf-status','kf-date','kunden-search'];
+  ids.forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  renderKundenTab();
+}
 
 function updateEntryDate(type, id, val) {
   const e=S.manualEntries[type].find(e=>e.id===id);
@@ -1022,7 +1027,7 @@ function renderKundenTab() {
   const archivedAll = eingewertet.filter(c=>getCustomerMeta(c._key).archived);
   let filtered = eingewertet.filter(c=>!getCustomerMeta(c._key).archived);
   if(search) filtered=filtered.filter(c=>`${c.firstName} ${c.lastName}`.toLowerCase().includes(search)||c.einwertNrRaw.toLowerCase().includes(search));
-  if(filterProject) filtered=filtered.filter(c=>{const m=getCustomerMeta(c._key);return m.projectId===filterProject;});
+  if(filterProject) filtered=filtered.filter(c=>{const m=getCustomerMeta(c._key);return m.projectId===filterProject||m.projectId2===filterProject;});
   if(filterStatus) filtered=filtered.filter(c=>{const m=getCustomerMeta(c._key);return (m.status||'')===filterStatus;});
   if(filterDateRef) {
     const sixMonthsAgo=new Date(filterDateRef); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth()-6);
@@ -1066,22 +1071,24 @@ function renderKundenTab() {
         ${filterDateRaw?`<button class="btn-icon-sm" onclick="document.getElementById('kf-date').value='';renderKundenTab()">✕</button>`:''}
       </div>
       <span class="kunden-count">${filtered.length} Kunden</span>
+      ${(filterProject||filterStatus||filterDateRaw||search)?`<button class="btn-reset-filter" onclick="resetKundenFilter()" title="Alle Filter zurücksetzen">✕ Filter</button>`:''}
       <button class="btn-secondary" onclick="exportKunden()">⬇️ CSV</button>
     </div>
     <div class="table-scroll"><table class="kunden-table kunden-table-wide">
-      <thead><tr><th style="width:32px">#</th><th>Vorname</th><th>Nachname</th><th>Einwertungsnr.</th><th>Datum</th><th style="width:60px">Rang</th><th style="width:120px">Projekt</th><th style="width:130px">Status</th><th style="width:32px"></th></tr></thead>
+      <thead><tr><th style="width:32px">#</th><th>Vorname</th><th>Nachname</th><th>Einwertungsnr.</th><th>Datum</th><th style="width:60px">Rang</th><th style="width:120px">Projekt 1</th><th style="width:120px">Projekt 2</th><th style="width:130px">Status</th><th style="width:32px"></th></tr></thead>
       <tbody>${filtered.map((c,i)=>{
         const meta=getCustomerMeta(c._key);
         const rowBg=STATUS_COLORS[meta.status]||'';
-        const projSel=`<select class="row-select" onchange="saveCustomerMeta('${escapeAttr(c._key)}','projectId',this.value)"><option value="">—</option>${S.projects.map(p=>`<option value="${p.id}"${meta.projectId===p.id?' selected':''}>${escapeHtml(p.hashtag||p.name)}</option>`).join('')}</select>`;
-        const statSel=`<select class="row-select row-status-select" onchange="saveCustomerMeta('${escapeAttr(c._key)}','status',this.value)">${STATUS_OPTS.map(o=>`<option value="${o.val}"${(meta.status||'')===o.val?' selected':''}>${o.label}</option>`).join('')}</select>`;
+        const projSel =`<select class="row-select" onchange="saveCustomerMeta('${escapeAttr(c._key)}','projectId',this.value)"><option value="">—</option>${S.projects.map(p=>`<option value="${p.id}"${meta.projectId===p.id?' selected':''}>${escapeHtml(p.hashtag||p.name)}</option>`).join('')}</select>`;
+        const projSel2=`<select class="row-select" onchange="saveCustomerMeta('${escapeAttr(c._key)}','projectId2',this.value)"><option value="">—</option>${S.projects.map(p=>`<option value="${p.id}"${meta.projectId2===p.id?' selected':''}>${escapeHtml(p.hashtag||p.name)}</option>`).join('')}</select>`;
+        const statSel =`<select class="row-select row-status-select" onchange="saveCustomerMeta('${escapeAttr(c._key)}','status',this.value)">${STATUS_OPTS.map(o=>`<option value="${o.val}"${(meta.status||'')===o.val?' selected':''}>${o.label}</option>`).join('')}</select>`;
         return `<tr${rowBg?' class="'+rowBg+'"':''}>`+
           `<td style="color:var(--gray-4);font-size:.78rem">${i+1}</td>`+
           `<td>${escapeHtml(c.firstName)}</td><td>${escapeHtml(c.lastName)}</td>`+
           `<td class="mono" style="font-size:.75rem">${escapeHtml(c.einwertNrRaw)}</td>`+
           `<td style="white-space:nowrap">${c.einwertDates.map(d=>formatDateDE(d)).join(', ')}</td>`+
           `<td style="text-align:right">${c.rangstelle||'—'}</td>`+
-          `<td>${projSel}</td><td>${statSel}</td>`+
+          `<td>${projSel}</td><td>${projSel2}</td><td>${statSel}</td>`+
           `<td><button class="btn-archive-row" title="Archivieren" onclick="toggleArchiveCustomer('${escapeAttr(c._key)}')">↓</button></td></tr>`;
       }).join('')}</tbody>
     </table></div>
