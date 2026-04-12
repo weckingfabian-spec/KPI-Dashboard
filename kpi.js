@@ -91,7 +91,8 @@ let S = {
   eventComments:    {},  // { [eventId]: "text" }
   customerNotes:    {},  // { [_key]: "text" }
   bigGoal:          { label: 'Notartermine', target: 25, achieved: 0, forecast: 0 },
-  projects:         []
+  projects:         [],
+  customerMeta:     {}   // { [_key]: { projectId, status } }
 };
 
 let V = { mode:'M', key:'', tab:'kpi' };
@@ -121,6 +122,7 @@ function _applyState(saved) {
     }
   }
   if (saved.projects) S.projects = saved.projects;
+  if (saved.customerMeta) S.customerMeta = saved.customerMeta;
   S.manualEntries.reservierungen = S.manualEntries.reservierungen.map(e =>
     e.projectId === undefined ? { ...e, projectId: null } : e
   );
@@ -150,7 +152,8 @@ function saveState() {
       customers: S.customers, calendarEvents: S.calendarEvents,
       calendarLastSync: S.calendarLastSync, selectedCalendars: S.selectedCalendars,
       goals: S.goals, eventComments: S.eventComments, customerNotes: S.customerNotes,
-      bigGoal: S.bigGoal, manualEntries: S.manualEntries, projects: S.projects
+      bigGoal: S.bigGoal, manualEntries: S.manualEntries, projects: S.projects,
+      customerMeta: S.customerMeta
     };
     try { localStorage.setItem('fw_kpi_v1', JSON.stringify(payload)); } catch(e) {}
     if (_sbToken && currentUser) {
@@ -549,16 +552,22 @@ function renderBigGoalBanner() {
   const open=Math.max(0,target-achieved-forecast);
   const total=achieved+forecast;
   const totalPct=Math.round((total/t)*100);
+  const now=new Date();
+  const yearPct=Math.round(((now-new Date(now.getFullYear(),0,1))/(new Date(now.getFullYear()+1,0,1)-new Date(now.getFullYear(),0,1)))*100);
+  const diff=achPct-yearPct;
+  const trendLabel=diff>=0?`<span style="color:var(--green)">▲ +${diff}% Vorsprung</span>`:`<span style="color:var(--red)">▼ ${diff}% Rückstand</span>`;
 
   document.getElementById('bg-label-display').textContent=label||(target?`Ziel: ${target}`:'Jahres-Ziel einrichten');
-  document.getElementById('bg-pct-display').textContent=target?`${total}/${target} (${totalPct}%)`:'';
+  document.getElementById('bg-pct-display').innerHTML=target?`<strong>${achieved} von ${target}</strong>`:'' ;
   document.getElementById('bg-achieved-bar').style.width=achPct+'%';
   document.getElementById('bg-forecast-bar').style.width=forPct+'%';
   document.getElementById('bg-legend').innerHTML=`
-    <span class="legend-chip chip-achieved">■ ${achieved} stattgefunden</span>
+    <span class="legend-chip chip-achieved">■ ${achieved} stattgefunden (${achPct}%)</span>
     <span class="legend-chip chip-forecast">▦ ${forecast} Forecast</span>
     <span class="legend-chip chip-open">□ ${open} offen</span>
-    <span class="legend-chip chip-target">Ziel: ${target}</span>`;
+    <span class="legend-chip chip-target">Ziel: ${target}</span>
+    <span class="legend-chip chip-year-pct">⏱ ${yearPct}% Jahr vergangen</span>
+    ${target?trendLabel:''}`;
 }
 
 function showBigGoalModal() {
@@ -786,6 +795,14 @@ function saveEntryProject(entryId, projectId) {
   const entry=S.manualEntries.reservierungen.find(e=>e.id===entryId);
   if(entry){ entry.projectId=projectId||null; saveState(); }
 }
+function saveCustomerMeta(_key, field, value) {
+  if (!S.customerMeta[_key]) S.customerMeta[_key] = {};
+  S.customerMeta[_key][field] = value || null;
+  saveState();
+}
+function getCustomerMeta(_key) {
+  return S.customerMeta[_key] || {};
+}
 
 function updateEntryDate(type, id, val) {
   const e=S.manualEntries[type].find(e=>e.id===id);
@@ -918,14 +935,82 @@ function renderKundenTab() {
   if(!S.customers.length){container.innerHTML='<div class="empty-state"><span class="icon">📊</span><p>Lade eine CSV-Datei hoch.</p></div>';return;}
   const eingewertet=S.customers.filter(c=>c.einwertDates&&c.einwertDates.length>0);
   document.getElementById('csv-info').textContent=`${S.customers.length} Kunden · ${eingewertet.length} eingewertet`;
+
+  // ── Filterwerte ──────────────────────────────────────────────────────────────
   const search=(document.getElementById('kunden-search')?.value||'').toLowerCase().trim();
+  const filterProject=document.getElementById('kf-project')?.value||'';
+  const filterStatus=document.getElementById('kf-status')?.value||'';
+  const filterDateRef=document.getElementById('kf-date')?.value||''; // YYYY-MM-DD or ''
+
   let filtered=eingewertet;
   if(search) filtered=filtered.filter(c=>`${c.firstName} ${c.lastName}`.toLowerCase().includes(search)||c.einwertNrRaw.toLowerCase().includes(search));
+  if(filterProject) filtered=filtered.filter(c=>{const m=getCustomerMeta(c._key);return m.projectId===filterProject;});
+  if(filterStatus) filtered=filtered.filter(c=>{const m=getCustomerMeta(c._key);return (m.status||'')=== filterStatus;});
+  if(filterDateRef) {
+    const refDate=new Date(filterDateRef);
+    const sixMonthsAgo=new Date(refDate); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth()-6);
+    filtered=filtered.filter(c=>c.einwertDates.some(d=>d>=sixMonthsAgo&&d<=refDate));
+  }
   filtered.sort((a,b)=>Math.max(...b.einwertDates.map(d=>d.getTime()))-Math.max(...a.einwertDates.map(d=>d.getTime())));
-  container.innerHTML=`<div class="kunden-header"><span class="kunden-count">${filtered.length} Kunden mit Einwertung</span><button class="btn-secondary" onclick="exportKunden()">⬇️ CSV Export</button></div>
-    <div class="table-scroll"><table class="kunden-table"><thead><tr><th>#</th><th>Vorname</th><th>Nachname</th><th>Einwertungsnummer(n)</th><th>Datum(en)</th><th>Rangstelle</th></tr></thead>
-    <tbody>${filtered.map((c,i)=>`<tr><td style="color:var(--gray-4)">${i+1}</td><td>${escapeHtml(c.firstName)}</td><td>${escapeHtml(c.lastName)}</td><td class="mono">${escapeHtml(c.einwertNrRaw)}</td><td>${c.einwertDates.map(d=>formatDateDE(d)).join(', ')}</td><td>${c.rangstelle||'—'}</td></tr>`).join('')}</tbody>
+
+  // ── Projekt-Optionen ──────────────────────────────────────────────────────────
+  const projectOpts=S.projects.map(p=>`<option value="${p.id}">${escapeHtml(p.hashtag||p.name)}</option>`).join('');
+
+  const STATUS_OPTS=[
+    {val:'',label:'— Status —'},
+    {val:'reservierungsberatung',label:'Reservierungsberatung'},
+    {val:'abwartend',label:'abwartend'},
+    {val:'aktuell_raus',label:'aktuell raus'}
+  ];
+  const STATUS_COLORS={reservierungsberatung:'#e8f5e9',abwartend:'#fff8e1',aktuell_raus:'#ffebee'};
+
+  const currentFilterProject=filterProject;
+  const currentFilterStatus=filterStatus;
+  const currentFilterDate=filterDateRef;
+
+  container.innerHTML=`
+    <div class="kunden-filter-bar">
+      <select id="kf-project" class="filter-select" onchange="renderKundenTab()">
+        <option value="">Alle Projekte</option>${projectOpts}
+      </select>
+      <select id="kf-status" class="filter-select" onchange="renderKundenTab()">
+        ${STATUS_OPTS.map(o=>`<option value="${o.val}">${o.label}</option>`).join('')}
+      </select>
+      <div class="filter-date-wrap">
+        <label style="font-size:.78rem;color:var(--gray-4)">Eingewertet bis:</label>
+        <input type="date" id="kf-date" class="text-input filter-date-input" value="${currentFilterDate}" onchange="renderKundenTab()" title="Zeigt Kunden der 6 Monate vor diesem Datum">
+        ${currentFilterDate?`<button class="btn-icon-sm" onclick="document.getElementById('kf-date').value='';renderKundenTab()">✕</button>`:''}
+      </div>
+      <span class="kunden-count">${filtered.length} Kunden</span>
+      <button class="btn-secondary" onclick="exportKunden()">⬇️ CSV</button>
+    </div>
+    <div class="table-scroll"><table class="kunden-table">
+      <thead><tr><th>#</th><th>Vorname</th><th>Nachname</th><th>Einwertungsnr.</th><th>Datum</th><th>Rang</th><th>Projekt</th><th>Status</th></tr></thead>
+      <tbody>${filtered.map((c,i)=>{
+        const meta=getCustomerMeta(c._key);
+        const rowBg=STATUS_COLORS[meta.status]||'';
+        const projSel=`<select class="customer-dropdown" onchange="saveCustomerMeta('${escapeAttr(c._key)}','projectId',this.value)">
+          <option value="">—</option>${S.projects.map(p=>`<option value="${p.id}"${meta.projectId===p.id?' selected':''}>${escapeHtml(p.hashtag||p.name)}</option>`).join('')}
+        </select>`;
+        const statSel=`<select class="customer-dropdown status-dropdown" onchange="saveCustomerMeta('${escapeAttr(c._key)}','status',this.value)">
+          ${STATUS_OPTS.map(o=>`<option value="${o.val}"${(meta.status||'')===o.val?' selected':''}>${o.label}</option>`).join('')}
+        </select>`;
+        return `<tr style="${rowBg?'background:'+rowBg+';':''}">`+
+          `<td style="color:var(--gray-4)">${i+1}</td>`+
+          `<td>${escapeHtml(c.firstName)}</td>`+
+          `<td>${escapeHtml(c.lastName)}</td>`+
+          `<td class="mono">${escapeHtml(c.einwertNrRaw)}</td>`+
+          `<td>${c.einwertDates.map(d=>formatDateDE(d)).join(', ')}</td>`+
+          `<td>${c.rangstelle||'—'}</td>`+
+          `<td>${projSel}</td>`+
+          `<td>${statSel}</td>`+
+          `</tr>`;
+      }).join('')}</tbody>
     </table></div>`;
+
+  // Filter-Werte wiederherstellen nach Re-Render
+  if(currentFilterProject){const el=document.getElementById('kf-project');if(el)el.value=currentFilterProject;}
+  if(currentFilterStatus){const el=document.getElementById('kf-status');if(el)el.value=currentFilterStatus;}
 }
 
 // ─── PROJEKTE TAB ──────────────────────────────────────────────────────────────

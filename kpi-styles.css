@@ -847,3 +847,48 @@ h4 { font-size: .875rem; font-weight: 700; margin-bottom: 10px; }
 #auth-modal .modal { max-width: 380px; }
 #auth-modal .modal-footer { justify-content: stretch; }
 #auth-modal .modal-footer .btn-primary { width: 100%; justify-content: center; }
+
+/* ─── Kunden Filter Bar ──────────────────────────────────────────────────────── */
+.kunden-filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 0 12px;
+  margin-bottom: 4px;
+}
+.filter-select {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-size: .82rem;
+  color: var(--gray-1);
+  cursor: pointer;
+}
+.filter-date-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.filter-date-input {
+  padding: 4px 8px;
+  font-size: .82rem;
+  width: 140px;
+}
+.btn-icon-sm {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--gray-4);
+  font-size: .85rem;
+  padding: 2px 4px;
+}
+.btn-icon-sm:hover { color: var(--red); }
+.status-dropdown { min-width: 140px; }
+
+/* ─── Big Goal Banner — year chip ───────────────────────────────────────────── */
+.chip-year-pct {
+  background: var(--blue-lt);
+  color: var(--blue);
+}
