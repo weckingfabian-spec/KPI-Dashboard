@@ -105,7 +105,7 @@ let gisReady    = false;
 
 // ─── STORAGE ───────────────────────────────────────────────────────────────────
 function _applyState(saved) {
-  if (saved.customers)         S.customers         = saved.customers;
+  if (saved.customers)         S.customers         = saved.customers.map(c=>({...c, einwertDates:(c.einwertDates||[]).map(d=>d instanceof Date?d:new Date(d)).filter(d=>!isNaN(d.getTime())), erstellt:c.erstellt?new Date(c.erstellt):null}));
   if (saved.calendarEvents)    S.calendarEvents    = saved.calendarEvents;
   if (saved.calendarLastSync)  S.calendarLastSync  = saved.calendarLastSync;
   if (saved.selectedCalendars) S.selectedCalendars = saved.selectedCalendars;
@@ -985,7 +985,7 @@ function renderKundenTab() {
     const sixMonthsAgo=new Date(filterDateRef); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth()-6);
     filtered=filtered.filter(c=>c.einwertDates.some(d=>d>=sixMonthsAgo&&d<=filterDateRef));
   }
-  filtered.sort((a,b)=>Math.max(...b.einwertDates.map(d=>d.getTime()))-Math.max(...a.einwertDates.map(d=>d.getTime())));
+  filtered.sort((a,b)=>Math.max(...b.einwertDates.map(d=>toDate(d).getTime()))-Math.max(...a.einwertDates.map(d=>toDate(d).getTime())));
 
   // ── Projekt-Optionen ──────────────────────────────────────────────────────────
   const projectOpts=S.projects.map(p=>`<option value="${p.id}">${escapeHtml(p.hashtag||p.name)}</option>`).join('');
