@@ -132,16 +132,30 @@ function _applyState(saved) {
 
 async function loadState() {
   // 1. localStorage sofort (instant paint)
-  try { const raw = localStorage.getItem('fw_kpi_v1'); if (raw) _applyState(JSON.parse(raw)); } catch(e) {}
+  let localParsed = null;
+  try { const raw = localStorage.getItem('fw_kpi_v1'); if (raw) { localParsed = JSON.parse(raw); _applyState(localParsed); } } catch(e) {}
 
-  // 2. Supabase (autoritativ)
+  // 2. Supabase
   if (!_sbToken || !currentUser) return;
   try {
     const remoteData = await sbLoadData(currentUser.id);
     if (remoteData) {
-      _applyState(remoteData);
-      try { localStorage.setItem('fw_kpi_v1', JSON.stringify(remoteData)); } catch(_) {}
-      render();
+      // Supabase "gewinnt" nur wenn es mehr Daten hat als localStorage
+      const remoteRich = (remoteData.customers?.length||0) + (remoteData.calendarEvents?.length||0);
+      const localRich  = (localParsed?.customers?.length||0) + (localParsed?.calendarEvents?.length||0);
+      if (remoteRich >= localRich) {
+        _applyState(remoteData);
+        try { localStorage.setItem('fw_kpi_v1', JSON.stringify(remoteData)); } catch(_) {}
+        render();
+      } else {
+        // localStorage hat mehr Daten → in Supabase hochladen damit es wieder sync ist
+        console.log('loadState: local richer, pushing to Supabase');
+        saveState();
+      }
+    } else if (localParsed) {
+      // Supabase leer aber localStorage hat Daten → hochladen
+      console.log('loadState: no Supabase data, pushing local to Supabase');
+      saveState();
     }
   } catch(e) { console.warn('loadState Supabase', e); }
 }
