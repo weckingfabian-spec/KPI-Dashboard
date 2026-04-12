@@ -991,11 +991,11 @@ h4 { font-size: .875rem; font-weight: 700; margin-bottom: 10px; }
 /* ─── Kunden Tab – Row Selects ───────────────────────────────────────────────── */
 .row-select {
   padding: 3px 4px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--gray-2);
   border-radius: var(--radius-sm);
   background: var(--white);
   font-size: .75rem;
-  color: var(--gray-1);
+  color: var(--gray-5);
   width: 100%;
   max-width: 120px;
 }
