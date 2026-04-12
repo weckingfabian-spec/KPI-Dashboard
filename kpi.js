@@ -145,8 +145,12 @@ async function loadState() {
       const remoteRich = (remoteData.customers?.length||0) + (remoteData.calendarEvents?.length||0);
       const localRich  = (localParsed?.customers?.length||0) + (localParsed?.calendarEvents?.length||0);
       if (remoteRich >= localRich) {
+        // Capture any customerMeta changes made during this session (before async fetch returned)
+        const sessionMeta = { ...S.customerMeta };
         _applyState(remoteData);
-        try { localStorage.setItem('fw_kpi_v1', JSON.stringify(remoteData)); } catch(_) {}
+        // Merge: session-level changes override remote (prevents async overwrite of fresh selections)
+        Object.assign(S.customerMeta, sessionMeta);
+        try { localStorage.setItem('fw_kpi_v1', JSON.stringify({ ...remoteData, customerMeta: S.customerMeta })); } catch(_) {}
         render();
       } else {
         // localStorage hat mehr Daten → in Supabase hochladen damit es wieder sync ist
