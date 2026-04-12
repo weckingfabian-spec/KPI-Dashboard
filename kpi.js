@@ -856,7 +856,15 @@ function saveEntryProject(entryId, projectId) {
 function saveCustomerMeta(_key, field, value) {
   if (!S.customerMeta[_key]) S.customerMeta[_key] = {};
   S.customerMeta[_key][field] = value || null;
-  saveState();
+  // Sofort in localStorage schreiben (kein Debounce) – verhindert Verlust bei schnellem Reload
+  try {
+    const cur = JSON.parse(localStorage.getItem('fw_kpi_v1') || '{}');
+    cur.customerMeta = S.customerMeta;
+    cur._savedAt = new Date().toISOString();
+    localStorage.setItem('fw_kpi_v1', JSON.stringify(cur));
+  } catch(e) {}
+  saveState(); // Supabase-Sync debounced
+  renderKundenTab(); // Tabelle sofort neu rendern damit Farbe + Label stimmen
 }
 function getCustomerMeta(_key) {
   return S.customerMeta[_key] || {};
