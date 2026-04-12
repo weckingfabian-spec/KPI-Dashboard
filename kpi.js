@@ -7,7 +7,7 @@ const CAL_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
 // ─── SUPABASE CONFIG ───────────────────────────────────────────────────────────
 const SUPABASE_URL      = 'https://sangtwduzxbbjskgfvrh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhbmd0d2R1enhiYmpza2dmdnJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwMDU4MDYsImV4cCI6MjA5MTU4MTgwNn0.QzSbePGQIvBaM5kRQJIetGdpjsQWc0B51zerIJghqeI';
-let supabase    = null;
+let sb          = null;   // Supabase client (window.supabase = SDK namespace)
 let currentUser = null;
 
 const KEYWORDS = {
@@ -325,9 +325,9 @@ function connectGoogle() {
 }
 
 function updateGoogleUI(connected) {
-  const sb=document.getElementById('sync-btn'), cb=document.getElementById('connect-btn'), st=document.getElementById('sync-status');
-  if(connected){sb.classList.remove('hidden');cb.classList.add('hidden');if(S.calendarLastSync)st.textContent=`Sync: ${formatDateDE(new Date(S.calendarLastSync))}`;}
-  else{sb.classList.add('hidden');cb.classList.remove('hidden');if(!GOOGLE_CLIENT_ID)cb.textContent='⚙️ Einrichten';}
+  const syncBtn=document.getElementById('sync-btn'), cb=document.getElementById('connect-btn'), st=document.getElementById('sync-status');
+  if(connected){syncBtn.classList.remove('hidden');cb.classList.add('hidden');if(S.calendarLastSync)st.textContent=`Sync: ${formatDateDE(new Date(S.calendarLastSync))}`;}
+  else{syncBtn.classList.add('hidden');cb.classList.remove('hidden');if(!GOOGLE_CLIENT_ID)cb.textContent='⚙️ Einrichten';}
 }
 
 // ─── CALENDAR LIST ─────────────────────────────────────────────────────────────
@@ -1150,7 +1150,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 // ─── INIT ──────────────────────────────────────────────────────────────────────
 (async function init(){
-  if(window.supabase) supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  if(window.supabase) sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
   V.key=getCurrentPeriodKey(V.mode);
   const user=await checkSession();
   if(user){
