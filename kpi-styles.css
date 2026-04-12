@@ -326,6 +326,39 @@ body {
 .kunden-table tbody tr.row-status-red:hover td    { background: rgba(244,67,54,.13); }
 .kunden-table td.mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: .78rem; color: var(--gray-4); }
 
+/* Archive row button */
+.btn-archive-row {
+  background: none; border: none; cursor: pointer;
+  color: var(--gray-3); font-size: .9rem; padding: 2px 6px; border-radius: 4px;
+  transition: color .15s, background .15s;
+}
+.btn-archive-row:hover { color: var(--gray-5); background: var(--gray-1); }
+
+/* Archive section */
+.archive-section { margin-top: 12px; }
+.archive-toggle {
+  display: flex; align-items: center; gap: 8px;
+  background: none; border: 1px solid var(--gray-2); border-radius: 8px;
+  padding: 8px 14px; cursor: pointer; font-size: .82rem; color: var(--gray-4);
+  width: 100%; text-align: left; transition: background .15s;
+}
+.archive-toggle:hover { background: var(--gray-0); }
+.archive-chevron { font-size: .7rem; }
+.archive-badge {
+  background: var(--gray-2); color: var(--gray-5); font-size: .72rem;
+  padding: 1px 7px; border-radius: 10px; font-weight: 600;
+}
+.kunden-table-archived tbody tr.row-archived td { opacity: .6; }
+.kunden-table-archived tbody tr.row-archived:hover td { opacity: 1; background: var(--gray-0); }
+
+/* Restore button */
+.btn-restore-row {
+  background: none; border: 1px solid var(--gray-2); border-radius: 5px;
+  cursor: pointer; color: var(--gray-4); font-size: .75rem; padding: 3px 8px;
+  transition: all .15s; white-space: nowrap;
+}
+.btn-restore-row:hover { border-color: var(--accent); color: var(--accent); background: rgba(99,102,241,.06); }
+
 /* ─── Modals ───────────────────────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 1000;

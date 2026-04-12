@@ -838,6 +838,13 @@ function saveCustomerMeta(_key, field, value) {
 function getCustomerMeta(_key) {
   return S.customerMeta[_key] || {};
 }
+function toggleArchiveCustomer(key) {
+  if (!S.customerMeta[key]) S.customerMeta[key] = {};
+  S.customerMeta[key].archived = S.customerMeta[key].archived ? null : true;
+  saveState(); renderKundenTab();
+}
+let _showArchive = false;
+function toggleArchiveSection() { _showArchive = !_showArchive; renderKundenTab(); }
 
 function updateEntryDate(type, id, val) {
   const e=S.manualEntries[type].find(e=>e.id===id);
@@ -978,7 +985,9 @@ function renderKundenTab() {
   const filterDateRaw=document.getElementById('kf-date')?.value||''; // TT.MM.JJJJ
   const filterDateRef=parseDateDE(filterDateRaw); // Date|null
 
-  let filtered=eingewertet;
+  // Split archived first (before search/filter, archiving is absolute)
+  const archivedAll = eingewertet.filter(c=>getCustomerMeta(c._key).archived);
+  let filtered = eingewertet.filter(c=>!getCustomerMeta(c._key).archived);
   if(search) filtered=filtered.filter(c=>`${c.firstName} ${c.lastName}`.toLowerCase().includes(search)||c.einwertNrRaw.toLowerCase().includes(search));
   if(filterProject) filtered=filtered.filter(c=>{const m=getCustomerMeta(c._key);return m.projectId===filterProject;});
   if(filterStatus) filtered=filtered.filter(c=>{const m=getCustomerMeta(c._key);return (m.status||'')===filterStatus;});
@@ -1027,7 +1036,7 @@ function renderKundenTab() {
       <button class="btn-secondary" onclick="exportKunden()">⬇️ CSV</button>
     </div>
     <div class="table-scroll"><table class="kunden-table kunden-table-wide">
-      <thead><tr><th style="width:32px">#</th><th>Vorname</th><th>Nachname</th><th>Einwertungsnr.</th><th>Datum</th><th style="width:60px">Rang</th><th style="width:120px">Projekt</th><th style="width:130px">Status</th></tr></thead>
+      <thead><tr><th style="width:32px">#</th><th>Vorname</th><th>Nachname</th><th>Einwertungsnr.</th><th>Datum</th><th style="width:60px">Rang</th><th style="width:120px">Projekt</th><th style="width:130px">Status</th><th style="width:32px"></th></tr></thead>
       <tbody>${filtered.map((c,i)=>{
         const meta=getCustomerMeta(c._key);
         const rowBg=STATUS_COLORS[meta.status]||'';
@@ -1039,9 +1048,33 @@ function renderKundenTab() {
           `<td class="mono" style="font-size:.75rem">${escapeHtml(c.einwertNrRaw)}</td>`+
           `<td style="white-space:nowrap">${c.einwertDates.map(d=>formatDateDE(d)).join(', ')}</td>`+
           `<td style="text-align:right">${c.rangstelle||'—'}</td>`+
-          `<td>${projSel}</td><td>${statSel}</td></tr>`;
+          `<td>${projSel}</td><td>${statSel}</td>`+
+          `<td><button class="btn-archive-row" title="Archivieren" onclick="toggleArchiveCustomer('${escapeAttr(c._key)}')">↓</button></td></tr>`;
       }).join('')}</tbody>
-    </table></div>`;
+    </table></div>
+    ${archivedAll.length>0?`
+    <div class="archive-section">
+      <button class="archive-toggle" onclick="toggleArchiveSection()">
+        <span class="archive-chevron">${_showArchive?'▲':'▼'}</span>
+        📦 Archiv <span class="archive-badge">${archivedAll.length}</span>
+      </button>
+      ${_showArchive?`<div class="table-scroll"><table class="kunden-table kunden-table-wide kunden-table-archived">
+        <thead><tr><th style="width:32px">#</th><th>Vorname</th><th>Nachname</th><th>Einwertungsnr.</th><th>Datum</th><th style="width:60px">Rang</th><th style="width:120px">Projekt</th><th style="width:130px">Status</th><th style="width:80px"></th></tr></thead>
+        <tbody>${archivedAll.map((c,i)=>{
+          const meta=getCustomerMeta(c._key);
+          const projLabel=S.projects.find(p=>p.id===meta.projectId)?.hashtag||'—';
+          const statLabel=STATUS_OPTS.find(o=>o.val===(meta.status||''))?.label||'—';
+          return `<tr class="row-archived">`+
+            `<td style="color:var(--gray-4);font-size:.78rem">${i+1}</td>`+
+            `<td>${escapeHtml(c.firstName)}</td><td>${escapeHtml(c.lastName)}</td>`+
+            `<td class="mono" style="font-size:.75rem">${escapeHtml(c.einwertNrRaw)}</td>`+
+            `<td style="white-space:nowrap">${c.einwertDates.map(d=>formatDateDE(d)).join(', ')}</td>`+
+            `<td style="text-align:right">${c.rangstelle||'—'}</td>`+
+            `<td>${escapeHtml(projLabel)}</td><td>${statLabel}</td>`+
+            `<td><button class="btn-restore-row" onclick="toggleArchiveCustomer('${escapeAttr(c._key)}')">↩ zurück</button></td></tr>`;
+        }).join('')}</tbody>
+      </table></div>`:''}
+    </div>`:''}`;
 }
 
 // ─── PROJEKTE TAB ──────────────────────────────────────────────────────────────
