@@ -44,11 +44,12 @@ async function sbLoadData(userId) {
   return rows[0].data;
 }
 async function sbSaveData(userId, payload) {
-  await fetch(`${SB_URL}/rest/v1/kpi_state`, {
+  const res = await fetch(`${SB_URL}/rest/v1/kpi_state?on_conflict=user_id`, {
     method:'POST',
-    headers:{ ..._sbHeaders(_sbToken), 'Prefer':'resolution=merge-duplicates' },
+    headers:{ ..._sbHeaders(_sbToken), 'Prefer':'resolution=merge-duplicates,return=minimal' },
     body:JSON.stringify({user_id:userId, data:payload, updated_at:new Date().toISOString()})
   });
+  if (!res.ok && res.status !== 204) console.warn('sbSaveData HTTP', res.status);
 }
 
 const KEYWORDS = {
@@ -985,7 +986,8 @@ function renderKundenTab() {
     const sixMonthsAgo=new Date(filterDateRef); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth()-6);
     filtered=filtered.filter(c=>c.einwertDates.some(d=>d>=sixMonthsAgo&&d<=filterDateRef));
   }
-  filtered.sort((a,b)=>Math.max(...b.einwertDates.map(d=>toDate(d).getTime()))-Math.max(...a.einwertDates.map(d=>toDate(d).getTime())));
+  const safeDateMs = d => { try { const t=toDate(d); return isNaN(t)?0:t.getTime(); } catch(_){return 0;} };
+  filtered.sort((a,b)=>Math.max(0,...b.einwertDates.map(safeDateMs))-Math.max(0,...a.einwertDates.map(safeDateMs)));
 
   // ── Projekt-Optionen ──────────────────────────────────────────────────────────
   const projectOpts=S.projects.map(p=>`<option value="${p.id}">${escapeHtml(p.hashtag||p.name)}</option>`).join('');
