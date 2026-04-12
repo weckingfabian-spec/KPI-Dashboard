@@ -5,10 +5,49 @@ let GOOGLE_CLIENT_ID = localStorage.getItem('fw_kpi_gcid') || '665528452958-j1uk
 const CAL_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
 
 // ─── SUPABASE CONFIG ───────────────────────────────────────────────────────────
-const SUPABASE_URL      = 'https://sangtwduzxbbjskgfvrh.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhbmd0d2R1enhiYmpza2dmdnJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwMDU4MDYsImV4cCI6MjA5MTU4MTgwNn0.QzSbePGQIvBaM5kRQJIetGdpjsQWc0B51zerIJghqeI';
-let sb          = null;   // Supabase client (window.supabase = SDK namespace)
+const SB_URL = 'https://sangtwduzxbbjskgfvrh.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhbmd0d2R1enhiYmpza2dmdnJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwMDU4MDYsImV4cCI6MjA5MTU4MTgwNn0.QzSbePGQIvBaM5kRQJIetGdpjsQWc0B51zerIJghqeI';
+let _sbToken    = null;   // JWT access token
 let currentUser = null;
+
+// ─── SUPABASE FETCH HELPERS ────────────────────────────────────────────────────
+function _sbHeaders(token) {
+  return { 'apikey': SB_KEY, 'Authorization': `Bearer ${token||SB_KEY}`, 'Content-Type': 'application/json' };
+}
+async function sbSignIn(email, password) {
+  const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
+    method:'POST', headers:{'apikey':SB_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({email,password})
+  });
+  const d = await res.json();
+  if (!res.ok) throw new Error(d.error_description || d.msg || 'Login fehlgeschlagen');
+  _sbToken = d.access_token;
+  localStorage.setItem('fw_kpi_token', d.access_token);
+  return d.user;
+}
+async function sbGetUser(token) {
+  const res = await fetch(`${SB_URL}/auth/v1/user`, { headers:_sbHeaders(token) });
+  if (!res.ok) return null;
+  return await res.json();
+}
+async function sbSignOut(token) {
+  await fetch(`${SB_URL}/auth/v1/logout`, { method:'POST', headers:_sbHeaders(token) }).catch(()=>{});
+}
+async function sbLoadData(userId) {
+  const res = await fetch(`${SB_URL}/rest/v1/kpi_state?user_id=eq.${userId}&select=data`, {
+    headers:_sbHeaders(_sbToken)
+  });
+  const rows = await res.json();
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  return rows[0].data;
+}
+async function sbSaveData(userId, payload) {
+  await fetch(`${SB_URL}/rest/v1/kpi_state`, {
+    method:'POST',
+    headers:{ ..._sbHeaders(_sbToken), 'Prefer':'resolution=merge-duplicates' },
+    body:JSON.stringify({user_id:userId, data:payload, updated_at:new Date().toISOString()})
+  });
+}
 
 const KEYWORDS = {
   kai_s2:         [
@@ -92,16 +131,15 @@ async function loadState() {
   try { const raw = localStorage.getItem('fw_kpi_v1'); if (raw) _applyState(JSON.parse(raw)); } catch(e) {}
 
   // 2. Supabase (autoritativ)
-  if (!sb || !currentUser) return;
+  if (!_sbToken || !currentUser) return;
   try {
-    const { data, error } = await sb.from('kpi_state').select('data').eq('user_id', currentUser.id).single();
-    if (error && error.code !== 'PGRST116') { console.warn('loadState Supabase', error.message); return; }
-    if (data?.data) {
-      _applyState(data.data);
-      try { localStorage.setItem('fw_kpi_v1', JSON.stringify(data.data)); } catch(_) {}
+    const remoteData = await sbLoadData(currentUser.id);
+    if (remoteData) {
+      _applyState(remoteData);
+      try { localStorage.setItem('fw_kpi_v1', JSON.stringify(remoteData)); } catch(_) {}
       render();
     }
-  } catch(e) { console.warn('loadState Supabase fetch', e); }
+  } catch(e) { console.warn('loadState Supabase', e); }
 }
 
 let _saveTimer = null;
@@ -115,12 +153,8 @@ function saveState() {
       bigGoal: S.bigGoal, manualEntries: S.manualEntries, projects: S.projects
     };
     try { localStorage.setItem('fw_kpi_v1', JSON.stringify(payload)); } catch(e) {}
-    if (sb && currentUser) {
-      try {
-        const { error } = await sb.from('kpi_state')
-          .upsert({ user_id: currentUser.id, data: payload, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
-        if (error) console.warn('saveState Supabase', error.message);
-      } catch(e) {}
+    if (_sbToken && currentUser) {
+      try { await sbSaveData(currentUser.id, payload); } catch(e) { console.warn('saveState', e); }
     }
   }, 400);
 }
@@ -131,12 +165,15 @@ function uid() {
 
 // ─── AUTH ──────────────────────────────────────────────────────────────────────
 async function checkSession() {
-  if (!sb) return null;
   try {
-    const { data: { session } } = await sb.auth.getSession();
-    if (session) { currentUser = session.user; return session.user; }
-  } catch(e) { console.warn('checkSession', e); }
-  return null;
+    const token = localStorage.getItem('fw_kpi_token');
+    if (!token) return null;
+    const user = await sbGetUser(token);
+    if (!user || user.error) { localStorage.removeItem('fw_kpi_token'); return null; }
+    _sbToken = token;
+    currentUser = user;
+    return user;
+  } catch(e) { return null; }
 }
 
 async function handleSignIn() {
@@ -148,25 +185,23 @@ async function handleSignIn() {
   if (!email || !password) { errEl.textContent = 'Bitte E-Mail und Passwort eingeben.'; errEl.style.display = 'block'; return; }
   btn.disabled = true; btn.textContent = 'Anmelden…';
   try {
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    currentUser = data.user;
+    currentUser = await sbSignIn(email, password);
     hideAuthModal();
     await loadState(); render(); initGoogleAuth();
     document.getElementById('signout-btn').classList.remove('hidden');
     showToast('Angemeldet ✓', 'success');
   } catch(e) {
-    errEl.textContent = e.message === 'Invalid login credentials'
-      ? 'E-Mail oder Passwort falsch.'
-      : (e.message || 'Anmeldung fehlgeschlagen.');
+    errEl.textContent = e.message.includes('Invalid') ? 'E-Mail oder Passwort falsch.' : (e.message || 'Anmeldung fehlgeschlagen.');
     errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Anmelden';
   }
 }
 
 async function handleSignOut() {
   if (!confirm('Abmelden?')) return;
-  if (sb) await sb.auth.signOut();
-  currentUser = null; location.reload();
+  await sbSignOut(_sbToken).catch(()=>{});
+  _sbToken = null; currentUser = null;
+  localStorage.removeItem('fw_kpi_token');
+  location.reload();
 }
 
 function showAuthModal() {
@@ -1080,12 +1115,8 @@ function importState(input) {
     try{
       const parsed=JSON.parse(ev.target.result);
       localStorage.setItem('fw_kpi_v1',ev.target.result);
-      if(sb&&currentUser){
-        try{
-          const{error}=await sb.from('kpi_state')
-            .upsert({user_id:currentUser.id,data:parsed,updated_at:new Date().toISOString()},{onConflict:'user_id'});
-          if(error) console.warn('importState Supabase',error.message);
-        }catch(e){}
+      if(_sbToken&&currentUser){
+        try{ await sbSaveData(currentUser.id,parsed); }catch(e){}
       }
       showToast('Backup importiert – App wird neu geladen…','success');
       setTimeout(()=>location.reload(),1000);
@@ -1150,7 +1181,6 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 // ─── INIT ──────────────────────────────────────────────────────────────────────
 (async function init(){
-  sb = window._sbClient || null;
   V.key=getCurrentPeriodKey(V.mode);
   const user=await checkSession();
   if(user){
