@@ -332,6 +332,8 @@ function parseCSV(text) {
   return rows;
 }
 
+function toDate(d){ return d instanceof Date ? d : new Date(d); }
+
 function mergeCustomers(newRows) {
   const existingMap=new Map(S.customers.map(c=>[c._key,c]));
   let added=0, updated=0;
@@ -341,10 +343,10 @@ function mergeCustomers(newRows) {
     } else {
       // Bestehender Kunde: nur neue Einwertungsdaten ergänzen, alles andere behalten
       const ex=existingMap.get(row._key);
-      const existingTimes=new Set(ex.einwertDates.map(d=>d.getTime()));
-      const newDates=row.einwertDates.filter(d=>!existingTimes.has(d.getTime()));
+      const existingTimes=new Set(ex.einwertDates.map(d=>toDate(d).getTime()));
+      const newDates=row.einwertDates.filter(d=>!existingTimes.has(toDate(d).getTime()));
       if(newDates.length>0){
-        ex.einwertDates=[...ex.einwertDates,...newDates].sort((a,b)=>a-b);
+        ex.einwertDates=[...ex.einwertDates,...newDates].map(toDate).sort((a,b)=>a-b);
         ex.einwertNrRaw=row.einwertNrRaw;
         ex.rangstelle=row.rangstelle;
         updated++;
