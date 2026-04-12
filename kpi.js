@@ -92,9 +92,9 @@ async function loadState() {
   try { const raw = localStorage.getItem('fw_kpi_v1'); if (raw) _applyState(JSON.parse(raw)); } catch(e) {}
 
   // 2. Supabase (autoritativ)
-  if (!supabase || !currentUser) return;
+  if (!sb || !currentUser) return;
   try {
-    const { data, error } = await supabase.from('kpi_state').select('data').eq('user_id', currentUser.id).single();
+    const { data, error } = await sb.from('kpi_state').select('data').eq('user_id', currentUser.id).single();
     if (error && error.code !== 'PGRST116') { console.warn('loadState Supabase', error.message); return; }
     if (data?.data) {
       _applyState(data.data);
@@ -115,9 +115,9 @@ function saveState() {
       bigGoal: S.bigGoal, manualEntries: S.manualEntries, projects: S.projects
     };
     try { localStorage.setItem('fw_kpi_v1', JSON.stringify(payload)); } catch(e) {}
-    if (supabase && currentUser) {
+    if (sb && currentUser) {
       try {
-        const { error } = await supabase.from('kpi_state')
+        const { error } = await sb.from('kpi_state')
           .upsert({ user_id: currentUser.id, data: payload, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
         if (error) console.warn('saveState Supabase', error.message);
       } catch(e) {}
@@ -131,9 +131,9 @@ function uid() {
 
 // ─── AUTH ──────────────────────────────────────────────────────────────────────
 async function checkSession() {
-  if (!supabase) return null;
+  if (!sb) return null;
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await sb.auth.getSession();
     if (session) { currentUser = session.user; return session.user; }
   } catch(e) { console.warn('checkSession', e); }
   return null;
@@ -148,7 +148,7 @@ async function handleSignIn() {
   if (!email || !password) { errEl.textContent = 'Bitte E-Mail und Passwort eingeben.'; errEl.style.display = 'block'; return; }
   btn.disabled = true; btn.textContent = 'Anmelden…';
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
     currentUser = data.user;
     hideAuthModal();
@@ -165,7 +165,7 @@ async function handleSignIn() {
 
 async function handleSignOut() {
   if (!confirm('Abmelden?')) return;
-  if (supabase) await supabase.auth.signOut();
+  if (sb) await sb.auth.signOut();
   currentUser = null; location.reload();
 }
 
@@ -1080,9 +1080,9 @@ function importState(input) {
     try{
       const parsed=JSON.parse(ev.target.result);
       localStorage.setItem('fw_kpi_v1',ev.target.result);
-      if(supabase&&currentUser){
+      if(sb&&currentUser){
         try{
-          const{error}=await supabase.from('kpi_state')
+          const{error}=await sb.from('kpi_state')
             .upsert({user_id:currentUser.id,data:parsed,updated_at:new Date().toISOString()},{onConflict:'user_id'});
           if(error) console.warn('importState Supabase',error.message);
         }catch(e){}
