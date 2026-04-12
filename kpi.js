@@ -333,9 +333,25 @@ function parseCSV(text) {
 }
 
 function mergeCustomers(newRows) {
-  const existing=new Set(S.customers.map(c=>c._key)); let added=0;
-  for(const row of newRows){if(!existing.has(row._key)){S.customers.push(row);existing.add(row._key);added++;}}
-  return added;
+  const existingMap=new Map(S.customers.map(c=>[c._key,c]));
+  let added=0, updated=0;
+  for(const row of newRows){
+    if(!existingMap.has(row._key)){
+      S.customers.push(row); existingMap.set(row._key,row); added++;
+    } else {
+      // Bestehender Kunde: nur neue Einwertungsdaten ergänzen, alles andere behalten
+      const ex=existingMap.get(row._key);
+      const existingTimes=new Set(ex.einwertDates.map(d=>d.getTime()));
+      const newDates=row.einwertDates.filter(d=>!existingTimes.has(d.getTime()));
+      if(newDates.length>0){
+        ex.einwertDates=[...ex.einwertDates,...newDates].sort((a,b)=>a-b);
+        ex.einwertNrRaw=row.einwertNrRaw;
+        ex.rangstelle=row.rangstelle;
+        updated++;
+      }
+    }
+  }
+  return {added,updated};
 }
 
 // ─── GOOGLE AUTH ───────────────────────────────────────────────────────────────
@@ -1172,7 +1188,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     const file=e.target.files[0]; if(!file) return;
     const reader=new FileReader();
     reader.onload=ev=>{
-      try{const rows=parseCSV(ev.target.result);const added=mergeCustomers(rows);saveState();render();showToast(`CSV: ${added} neue (${rows.length} in Datei, ${S.customers.length} gesamt)`,'success');}
+      try{const rows=parseCSV(ev.target.result);const{added,updated}=mergeCustomers(rows);saveState();render();showToast(`CSV: ${added} neu, ${updated} aktualisiert (${S.customers.length} gesamt)`,'success');}
       catch(err){showToast('CSV-Fehler: '+err.message,'error');}
     };
     reader.onerror=()=>showToast('Datei konnte nicht gelesen werden.','error');
@@ -1293,6 +1309,8 @@ document.addEventListener('DOMContentLoaded',()=>{
       const e=S.customers.filter(c=>c.einwertDates&&c.einwertDates.length>0);
       document.getElementById('csv-info').textContent=`${S.customers.length} Kunden · ${e.length} eingewertet`;
     }
+    // Heartbeat: alle 10s in Supabase speichern (Sicherheitsnetz)
+    setInterval(()=>{ if(_sbToken&&currentUser) saveState(); }, 10000);
   } else {
     // Render mit localStorage-Daten während Auth angezeigt wird
     try{const raw=localStorage.getItem('fw_kpi_v1');if(raw)_applyState(JSON.parse(raw));}catch(e){}
