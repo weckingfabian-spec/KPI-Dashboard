@@ -1150,10 +1150,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 // ─── INIT ──────────────────────────────────────────────────────────────────────
 (async function init(){
-  try {
-    const _supa = window.supabase || window.Supabase;
-    if(_supa && _supa.createClient) sb = _supa.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  } catch(e) { console.warn('Supabase init:', e); }
+  sb = window._sbClient || null;
   V.key=getCurrentPeriodKey(V.mode);
   const user=await checkSession();
   if(user){

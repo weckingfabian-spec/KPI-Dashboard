@@ -341,6 +341,16 @@
 
   <!-- Supabase -->
   <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    // Client sofort nach CDN erstellen – bevor kpi.js läuft
+    try {
+      var _SB_URL = 'https://sangtwduzxbbjskgfvrh.supabase.co';
+      var _SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhbmd0d2R1enhiYmpza2dmdnJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwMDU4MDYsImV4cCI6MjA5MTU4MTgwNn0.QzSbePGQIvBaM5kRQJIetGdpjsQWc0B51zerIJghqeI';
+      if (window.supabase && window.supabase.createClient) {
+        window._sbClient = window.supabase.createClient(_SB_URL, _SB_KEY);
+      }
+    } catch(e) { console.warn('Supabase setup:', e); }
+  </script>
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="kpi.js"></script>
