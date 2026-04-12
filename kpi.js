@@ -34,14 +34,14 @@ async function sbSignOut(token) {
   await fetch(`${SB_URL}/auth/v1/logout`, { method:'POST', headers:_sbHeaders(token) }).catch(()=>{});
 }
 async function sbLoadData(userId) {
-  const res = await fetch(`${SB_URL}/rest/v1/kpi_state?select=data&limit=1`, {
+  const res = await fetch(`${SB_URL}/rest/v1/kpi_state?select=data,updated_at&limit=1`, {
     headers:_sbHeaders(_sbToken)
   });
   if (!res.ok) { console.warn('sbLoadData HTTP', res.status); return null; }
   const rows = await res.json();
   console.log('sbLoadData rows:', rows?.length, rows?.[0]?.data ? 'has data' : 'no data');
   if (!Array.isArray(rows) || rows.length === 0) return null;
-  return rows[0].data;
+  return { data: rows[0].data, updatedAt: rows[0].updated_at };
 }
 async function sbSaveData(userId, payload) {
   const res = await fetch(`${SB_URL}/rest/v1/kpi_state?on_conflict=user_id`, {
@@ -139,27 +139,36 @@ async function loadState() {
   // 2. Supabase
   if (!_sbToken || !currentUser) return;
   try {
-    const remoteData = await sbLoadData(currentUser.id);
-    if (remoteData) {
-      // Supabase "gewinnt" nur wenn es mehr Daten hat als localStorage
+    const remote = await sbLoadData(currentUser.id);
+    if (remote && remote.data) {
+      const remoteData = remote.data;
+      // Timestamp-basierter Vergleich: neuerer Stand gewinnt
+      const remoteTs = remote.updatedAt ? new Date(remote.updatedAt).getTime() : 0;
+      const localTs  = localParsed?._savedAt ? new Date(localParsed._savedAt).getTime() : 0;
+      // Zusätzlich: Anz. Kunden + Kalender-Events als Fallback wenn kein Timestamp
       const remoteRich = (remoteData.customers?.length||0) + (remoteData.calendarEvents?.length||0);
       const localRich  = (localParsed?.customers?.length||0) + (localParsed?.calendarEvents?.length||0);
-      if (remoteRich >= localRich) {
-        // Capture any customerMeta changes made during this session (before async fetch returned)
-        const sessionMeta = { ...S.customerMeta };
+      const remoteWins = remoteTs > 0 ? remoteTs > localTs : remoteRich > localRich;
+      if (remoteWins) {
+        // Sitzungs-Änderungen sichern bevor Supabase-Daten angewendet werden
+        const sessionMeta     = { ...S.customerMeta };
+        const sessionProjects = [...S.projects];
+        const sessionGoals    = { ...S.goals };
         _applyState(remoteData);
-        // Merge: session-level changes override remote (prevents async overwrite of fresh selections)
+        // Session-Daten bevorzugen: verhindert Überschreiben durch verzögerte Supabase-Antwort
         Object.assign(S.customerMeta, sessionMeta);
-        try { localStorage.setItem('fw_kpi_v1', JSON.stringify({ ...remoteData, customerMeta: S.customerMeta })); } catch(_) {}
+        if (sessionProjects.length > S.projects.length) S.projects = sessionProjects;
+        if (Object.keys(sessionGoals).length > 0) S.goals = { ...S.goals, ...sessionGoals };
+        const merged = { ...remoteData, customerMeta: S.customerMeta, projects: S.projects, goals: S.goals };
+        try { localStorage.setItem('fw_kpi_v1', JSON.stringify(merged)); } catch(_) {}
+        console.log('loadState: remote wins (ts)', remoteTs, '>', localTs);
         render();
       } else {
-        // localStorage hat mehr Daten → in Supabase hochladen damit es wieder sync ist
-        console.log('loadState: local richer, pushing to Supabase');
+        console.log('loadState: local wins (ts)', localTs, '>=', remoteTs, '– pushing to Supabase');
         saveState();
       }
     } else if (localParsed) {
-      // Supabase leer aber localStorage hat Daten → hochladen
-      console.log('loadState: no Supabase data, pushing local to Supabase');
+      console.log('loadState: no Supabase data, pushing local');
       saveState();
     }
   } catch(e) { console.warn('loadState Supabase', e); }
@@ -174,7 +183,8 @@ function saveState() {
       calendarLastSync: S.calendarLastSync, selectedCalendars: S.selectedCalendars,
       goals: S.goals, eventComments: S.eventComments, customerNotes: S.customerNotes,
       bigGoal: S.bigGoal, manualEntries: S.manualEntries, projects: S.projects,
-      customerMeta: S.customerMeta
+      customerMeta: S.customerMeta,
+      _savedAt: new Date().toISOString()
     };
     try { localStorage.setItem('fw_kpi_v1', JSON.stringify(payload)); } catch(e) {}
     if (_sbToken && currentUser) {
