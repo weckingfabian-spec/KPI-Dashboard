@@ -1004,7 +1004,7 @@ function renderKundenTab() {
     {val:'abwartend',label:'abwartend'},
     {val:'aktuell_raus',label:'aktuell raus'}
   ];
-  const STATUS_COLORS={reservierungsberatung:'#e8f5e9',abwartend:'#fff8e1',aktuell_raus:'#ffebee'};
+  const STATUS_COLORS={reservierungsberatung:'row-status-green',abwartend:'row-status-yellow',aktuell_raus:'row-status-red'};
 
   container.innerHTML=`
     <div class="kunden-filter-bar">
@@ -1033,7 +1033,7 @@ function renderKundenTab() {
         const rowBg=STATUS_COLORS[meta.status]||'';
         const projSel=`<select class="row-select" onchange="saveCustomerMeta('${escapeAttr(c._key)}','projectId',this.value)"><option value="">—</option>${S.projects.map(p=>`<option value="${p.id}"${meta.projectId===p.id?' selected':''}>${escapeHtml(p.hashtag||p.name)}</option>`).join('')}</select>`;
         const statSel=`<select class="row-select row-status-select" onchange="saveCustomerMeta('${escapeAttr(c._key)}','status',this.value)">${STATUS_OPTS.map(o=>`<option value="${o.val}"${(meta.status||'')===o.val?' selected':''}>${o.label}</option>`).join('')}</select>`;
-        return `<tr style="${rowBg?'background:'+rowBg+';':''}">`+
+        return `<tr${rowBg?' class="'+rowBg+'"':''}>`+
           `<td style="color:var(--gray-4);font-size:.78rem">${i+1}</td>`+
           `<td>${escapeHtml(c.firstName)}</td><td>${escapeHtml(c.lastName)}</td>`+
           `<td class="mono" style="font-size:.75rem">${escapeHtml(c.einwertNrRaw)}</td>`+

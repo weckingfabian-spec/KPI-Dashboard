@@ -318,6 +318,12 @@ body {
 }
 .kunden-table th { background: var(--gray-0); color: var(--gray-4); font-weight: 600; font-size: .72rem; text-transform: uppercase; }
 .kunden-table tbody tr:hover td { background: var(--gray-0); }
+.kunden-table tbody tr.row-status-green td      { background: rgba(76,175,80,.08); }
+.kunden-table tbody tr.row-status-yellow td     { background: rgba(255,193,7,.12); }
+.kunden-table tbody tr.row-status-red td        { background: rgba(244,67,54,.07); }
+.kunden-table tbody tr.row-status-green:hover td  { background: rgba(76,175,80,.16); }
+.kunden-table tbody tr.row-status-yellow:hover td { background: rgba(255,193,7,.22); }
+.kunden-table tbody tr.row-status-red:hover td    { background: rgba(244,67,54,.13); }
 .kunden-table td.mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: .78rem; color: var(--gray-4); }
 
 /* ─── Modals ───────────────────────────────────────────────────────────────── */
