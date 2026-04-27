@@ -330,7 +330,10 @@ let activeTab = 'overview';
 
 function switchTab(tab) {
   activeTab = tab;
+  // Desktop nav
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  // Mobile nav
+  document.querySelectorAll('.mob-nav-btn[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `t-${tab}`));
   const map = {
     overview: renderOverview,
@@ -1194,26 +1197,56 @@ function setupUI() {
   el('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
   el('login-btn').addEventListener('click', doLogin);
   el('logout-btn').addEventListener('click', doLogout);
+
+  // Mobile bottom nav
+  document.querySelectorAll('.mob-nav-btn[data-tab]').forEach(b => {
+    b.addEventListener('click', () => switchTab(b.dataset.tab));
+  });
+
+  // Mobile "Mehr" sheet
+  const sheet    = el('mob-sheet');
+  const backdrop = el('mob-backdrop');
+
+  function openSheet()  { sheet.classList.add('open'); backdrop.classList.add('open'); }
+  function closeSheet() { sheet.classList.remove('open'); backdrop.classList.remove('open'); }
+
+  el('mob-more-btn').addEventListener('click', openSheet);
+  backdrop.addEventListener('click', closeSheet);
+
+  document.querySelectorAll('.mob-sheet-item[data-tab]').forEach(b => {
+    b.addEventListener('click', () => { switchTab(b.dataset.tab); closeSheet(); });
+  });
+
+  el('mob-logout-btn').addEventListener('click', () => { closeSheet(); doLogout(); });
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
   setupUI();
 
-  // Register PWA service worker
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
 
-  // Auth state handler — fires on load (INITIAL_SESSION) and on login/logout
+  // onAuthStateChange handles INITIAL_SESSION (already logged in) + SIGNED_IN (new login) + SIGNED_OUT
+  let authHandled = false;
   db.auth.onAuthStateChange(async (event, session) => {
-    if (session && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) {
-      currentUser = session.user;
-      await loadState();
-      showApp();
-      switchTab('overview');
-    } else if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') {
+    if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && !currentUser) {
+      authHandled = true;
+      if (session) {
+        currentUser = session.user;
+        await loadState();
+        showApp();
+        switchTab('overview');
+      } else {
+        showLogin();
+      }
+    } else if (event === 'SIGNED_OUT') {
+      authHandled = true;
       currentUser = null;
       showLogin();
     }
   });
+
+  // Fallback: if auth never initializes (stale session, network hang), show login after 6s
+  setTimeout(() => { if (!authHandled) showLogin(); }, 6000);
 });

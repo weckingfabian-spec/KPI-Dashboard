@@ -1,0 +1,16 @@
+# Secrets & Credentials
+client_secret_*.json
+*.credentials.json
+.env
+.env.local
+.env*.local
+
+# Kundendaten
+*.csv
+
+# System
+.DS_Store
+.claude/
+
+# Dependencies
+node_modules/

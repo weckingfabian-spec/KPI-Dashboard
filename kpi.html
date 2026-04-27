@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KPI Dashboard – Fabian Wecking</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="kpi-styles.css">
+</head>
+<body>
+
+  <!-- Setup Banner -->
+  <div id="setup-banner" class="setup-banner hidden">
+    <span>⚙️ Google Client ID nicht konfiguriert – Kalender-Sync nicht verfügbar.
+      <button onclick="showSettingsModal()">Jetzt einrichten</button>
+    </span>
+    <button class="close-btn" onclick="document.getElementById('setup-banner').classList.add('hidden')">✕</button>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <h1 class="app-title">KPI Dashboard</h1>
+      <span class="app-subtitle">Fabian Wecking · tecis</span>
+    </div>
+    <div class="header-center">
+      <div class="period-tabs" id="period-tabs">
+        <button class="period-tab active" data-mode="M">Monat</button>
+        <button class="period-tab" data-mode="Q">Quartal</button>
+        <button class="period-tab" data-mode="H">Halbjahr</button>
+        <button class="period-tab" data-mode="J">Jahr</button>
+      </div>
+      <div class="period-nav">
+        <button class="nav-arrow" id="prev-period">‹</button>
+        <span class="period-label" id="period-label">–</span>
+        <button class="nav-arrow" id="next-period">›</button>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="google-section">
+        <span id="sync-status" class="sync-status"></span>
+        <button id="sync-btn" class="btn-primary hidden" onclick="showSyncModal()">📅 Kalender auslesen</button>
+        <button id="connect-btn" class="btn-secondary" onclick="connectGoogle()">🔗 Google verbinden</button>
+      </div>
+      <label class="btn-secondary csv-upload-btn" title="CSV-Datei hochladen">
+        📊 CSV hochladen
+        <input type="file" id="csv-input" accept=".csv,.CSV" style="display:none">
+      </label>
+      <button class="icon-btn" onclick="showSettingsModal()" title="Einstellungen">⚙️</button>
+    </div>
+  </header>
+
+  <!-- Tab Navigation -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="kpi">KPI-Übersicht</button>
+    <button class="tab-btn" data-tab="kunden">Eingewertete Kunden</button>
+    <button class="tab-btn" data-tab="projekte">Projekte</button>
+  </nav>
+
+  <!-- ── KPI Tab ──────────────────────────────────────────────────────────── -->
+  <main id="tab-kpi" class="tab-content active">
+
+    <!-- Big Goal Banner -->
+    <div id="big-goal-banner" class="big-goal-banner">
+      <div class="big-goal-header">
+        <span class="big-goal-title">🎯 <span id="bg-label-display">Jahres-Ziel einrichten</span></span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="bg-pct-display" class="big-goal-pct"></span>
+          <button class="btn-secondary btn-sm" onclick="showBigGoalModal()">✏️ Bearbeiten</button>
+        </div>
+      </div>
+      <div class="big-goal-track" id="big-goal-track">
+        <div class="big-goal-achieved-bar" id="bg-achieved-bar"></div>
+        <div class="big-goal-forecast-bar" id="bg-forecast-bar"></div>
+      </div>
+      <div class="big-goal-legend" id="bg-legend">
+        <span class="legend-chip chip-achieved">■ 0 stattgefunden</span>
+        <span class="legend-chip chip-forecast">▦ 0 Forecast</span>
+        <span class="legend-chip chip-open">□ 0 offen</span>
+        <span class="legend-chip chip-target">Ziel: 25</span>
+      </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid" id="kpi-cards"></div>
+
+    <!-- Funnel + Insights -->
+    <div class="two-col">
+      <div id="funnel" class="panel"><p class="no-data">Noch keine Daten.</p></div>
+      <div id="insights" class="panel"><p class="no-data">Noch keine Analyse.</p></div>
+    </div>
+
+    <!-- History Table -->
+    <div id="stats-table" class="panel"></div>
+
+  </main>
+
+  <!-- ── Kunden Tab ───────────────────────────────────────────────────────── -->
+  <main id="tab-kunden" class="tab-content hidden">
+    <div class="kunden-toolbar">
+      <input type="text" id="kunden-search" placeholder="Name oder Einwertungsnummer suchen…" class="search-input">
+      <div class="csv-info" id="csv-info">Keine CSV geladen</div>
+    </div>
+    <div id="tab-kunden-content">
+      <div class="empty-state"><span class="icon">📊</span><p>Lade eine CSV-Datei hoch.</p></div>
+    </div>
+  </main>
+
+  <!-- ── Projekte Tab ─────────────────────────────────────────────────────── -->
+  <main id="tab-projekte" class="tab-content hidden">
+    <!-- Rendered dynamically by renderProjects() in kpi.js -->
+  </main>
+
+  <!-- ── Modal: Detail-Ansicht ────────────────────────────────────────────── -->
+  <div id="detail-modal" class="modal-overlay hidden"
+       onclick="if(event.target===this)closeModal('detail-modal')">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h3 id="detail-modal-title">Detail</h3>
+        <button class="modal-close" onclick="closeModal('detail-modal')">✕</button>
+      </div>
+      <div class="modal-body" id="detail-modal-body"></div>
+      <div class="modal-footer">
+        <button class="btn-primary" onclick="closeModal('detail-modal')">Schließen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: Big Goal ──────────────────────────────────────────────────── -->
+  <div id="big-goal-modal" class="modal-overlay hidden"
+       onclick="if(event.target===this)closeModal('big-goal-modal')">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Jahres-Ziel bearbeiten</h3>
+        <button class="modal-close" onclick="closeModal('big-goal-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Bezeichnung</label>
+          <input type="text" id="bg-label-input" class="text-input" placeholder="z.B. Notartermine 2026">
+        </div>
+        <div class="form-group">
+          <label>Jahres-Ziel</label>
+          <input type="number" id="bg-target-input" class="text-input" min="0" placeholder="25">
+        </div>
+        <div class="form-group">
+          <label>Bereits stattgefunden (inkl. historisch)</label>
+          <input type="number" id="bg-achieved-input" class="text-input" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Forecast / Pipeline</label>
+          <input type="number" id="bg-forecast-input" class="text-input" min="0" placeholder="0">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('big-goal-modal')">Abbrechen</button>
+        <button class="btn-primary" onclick="saveBigGoal()">Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: Calendar Sync ─────────────────────────────────────────────── -->
+  <div id="sync-modal" class="modal-overlay hidden"
+       onclick="if(event.target===this)closeModal('sync-modal')">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h3>Kalender synchronisieren</h3>
+        <button class="modal-close" onclick="closeModal('sync-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="margin:0">
+            <label>Von</label>
+            <input type="date" id="sync-from" value="2026-01-01" class="text-input">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Bis</label>
+            <input type="date" id="sync-to" class="text-input">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top:14px">
+          <label>Kalender auswählen</label>
+          <div id="cal-list-wrap" style="margin-top:6px">
+            <span style="font-size:.82rem;color:var(--gray-4)">Klick auf „Kalender laden" um alle verfügbaren Kalender anzuzeigen.</span>
+          </div>
+          <button class="btn-secondary" style="margin-top:8px;font-size:.8rem" onclick="loadCalendarList()">🔄 Kalender laden</button>
+        </div>
+
+        <div class="keyword-rules" style="margin-top:12px">
+          <h4>Erkannte Termintypen</h4>
+          <div class="rule-list">
+            <div class="rule"><span class="rule-type">KAI S2: </span>Gespräch Kapitalanlageimmobilie · KAI S2 · KAI S1</div>
+            <div class="rule"><span class="rule-type">Potenzialarbeit: </span>Potentialarbeit KAI</div>
+            <div class="rule"><span class="rule-type">OV-Gespräch: </span>Objektvorstellung · OV (ganzes Wort)</div>
+            <div class="rule"><span class="rule-type">Notartermin: </span>Notartermin · NT (ganzes Wort)</div>
+          </div>
+        </div>
+
+        <div id="sync-result" style="margin-top:14px;font-size:.82rem;color:var(--gray-4);min-height:20px"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('sync-modal')">Schließen</button>
+        <button class="btn-primary" id="start-sync-btn" onclick="startSync()">Synchronisieren</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: Settings ──────────────────────────────────────────────────── -->
+  <div id="settings-modal" class="modal-overlay hidden"
+       onclick="if(event.target===this)closeModal('settings-modal')">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h3>Einstellungen</h3>
+        <button class="modal-close" onclick="closeModal('settings-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <h4>Google Calendar</h4>
+        <div class="form-group">
+          <label>Client ID</label>
+          <input type="text" id="gcid-input" class="text-input" placeholder="123456789.apps.googleusercontent.com">
+        </div>
+        <details class="setup-guide">
+          <summary>📋 Setup-Anleitung</summary>
+          <ol>
+            <li>Öffne <a href="https://console.cloud.google.com" target="_blank" rel="noopener">console.cloud.google.com</a></li>
+            <li>Google Calendar API aktivieren</li>
+            <li>OAuth 2.0-Client-ID erstellen (Webanwendung)</li>
+            <li>Autorisierte Quelle: <code>http://localhost:8080</code></li>
+            <li>Client-ID hier eintragen</li>
+          </ol>
+          <div class="info-box">⚠️ App muss über HTTP-Server geöffnet werden:<br>
+            <code>python3 -m http.server 8080</code> → <code>http://localhost:8080/kpi.html</code></div>
+        </details>
+        <hr>
+        <h4>Monatliche Ziele</h4>
+        <div class="goals-grid" id="goals-grid"></div>
+        <hr>
+        <h4>Daten zurücksetzen</h4>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-secondary" onclick="resetCalendarData()">🗓️ Kalender-Daten löschen</button>
+          <button class="btn-secondary" onclick="resetCSVData()">📊 CSV-Daten löschen</button>
+        </div>
+        <hr style="margin:12px 0">
+        <h4>Datenmigration</h4>
+        <p style="font-size:.78rem;color:var(--gray-4);margin-bottom:10px">Backup exportieren (z.B. vor Hosting-Wechsel), auf neuem Gerät/Domain wieder importieren.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-secondary" onclick="exportState()">⬇️ Backup exportieren</button>
+          <label class="btn-secondary" style="cursor:pointer">
+            ⬆️ Backup importieren
+            <input type="file" accept=".json" style="display:none" onchange="importState(this)">
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('settings-modal')">Abbrechen</button>
+        <button class="btn-primary" onclick="saveSettings()">Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: Projekt hinzufügen / bearbeiten ───────────────────────────── -->
+  <div id="project-modal" class="modal-overlay hidden"
+       onclick="if(event.target===this)closeModal('project-modal')">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h3 id="project-modal-title">Neues Projekt</h3>
+        <button class="modal-close" onclick="closeModal('project-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="pm-id">
+        <div class="project-modal-form">
+          <div class="form-group">
+            <label>Projektname *</label>
+            <input type="text" id="pm-name" class="text-input" placeholder="z.B. Stadtquartier Nord">
+          </div>
+          <div class="pm-two-col">
+            <div class="form-group">
+              <label>Stadt</label>
+              <input type="text" id="pm-city" class="text-input" placeholder="z.B. Schönefeld">
+            </div>
+            <div class="form-group">
+              <label>Straße</label>
+              <input type="text" id="pm-street" class="text-input" placeholder="z.B. Hauptstraße 12">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Hashtag <span style="font-weight:400;color:var(--gray-4)">(kein # nötig — erscheint bei Reservierungen)</span></label>
+            <input type="text" id="pm-hashtag" class="text-input" placeholder="z.B. Schönefeld Bestand">
+          </div>
+          <div class="pm-three-col">
+            <div class="form-group">
+              <label>Reservierungsstart</label>
+              <input type="date" id="pm-reservStart" class="text-input">
+            </div>
+            <div class="form-group">
+              <label>Reservierungsende</label>
+              <input type="date" id="pm-reservEnd" class="text-input">
+            </div>
+            <div class="form-group">
+              <label>Voraussichtl. Zuteilung</label>
+              <input type="date" id="pm-zuteilung" class="text-input">
+            </div>
+          </div>
+          <div id="pm-pdf-hint" style="font-size:.78rem;color:var(--gray-4);margin-bottom:4px"></div>
+          <p style="font-size:.75rem;color:var(--gray-4)">📎 PDF (Trailer/Exposé) kann nach dem Speichern direkt auf der Projektkarte hochgeladen werden.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('project-modal')">Abbrechen</button>
+        <button class="btn-primary" onclick="saveProjectModal()">Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="kpi.js"></script>
+</body>
+</html>
